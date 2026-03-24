@@ -3,3 +3,8 @@ dist/
 *.tgz
 .DS_Store
 coverage/
+
+# 3B symlinks (personal, not shared)
+docs
+.claude/
+CLAUDE.md
