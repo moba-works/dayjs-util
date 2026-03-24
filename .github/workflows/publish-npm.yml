@@ -35,9 +35,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+          # No registry-url — let npm handle OIDC auth natively
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      # OIDC Trusted Publishing — no NODE_AUTH_TOKEN needed.
-      # npm authenticates via GitHub Actions OIDC automatically.
-      - run: pnpm publish --access public --no-git-checks --provenance
+      # Upgrade npm to latest for full OIDC trusted publishing support
+      - run: npm install -g npm@latest
+      # OIDC Trusted Publishing — npm authenticates via GitHub Actions
+      # OIDC automatically. No NODE_AUTH_TOKEN needed.
+      - run: npm publish --access public --provenance
