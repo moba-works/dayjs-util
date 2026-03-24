@@ -1,4 +1,4 @@
-# @brandonwie/date-util
+# @brandonwie/dayjs-util
 
 Timezone-safe date utility wrapper for [dayjs](https://day.js.org/) — built for calendar applications.
 
@@ -14,9 +14,9 @@ Timezone-safe date utility wrapper for [dayjs](https://day.js.org/) — built fo
 ## Install
 
 ```bash
-pnpm add @brandonwie/date-util dayjs
+pnpm add @brandonwie/dayjs-util dayjs
 # or
-npm install @brandonwie/date-util dayjs
+npm install @brandonwie/dayjs-util dayjs
 ```
 
 > `dayjs` is a **peer dependency** — you control the version.
@@ -24,7 +24,7 @@ npm install @brandonwie/date-util dayjs
 ## Quick Start
 
 ```typescript
-import { DateUtil } from "@brandonwie/date-util";
+import { DateUtil } from "@brandonwie/dayjs-util";
 
 // Parse a date AS being in a specific timezone
 const seoulMidnight = DateUtil.tzParse("2025-01-01 00:00:00", "Asia/Seoul");
@@ -117,8 +117,8 @@ Use `tzParse()` when processing user input in their timezone. Use `tz()` when co
 Optional import for calendar-specific date processing:
 
 ```typescript
-import { EventDateHandler } from "@brandonwie/date-util";
-// or: import { EventDateHandler } from '@brandonwie/date-util/event';
+import { EventDateHandler } from "@brandonwie/dayjs-util";
+// or: import { EventDateHandler } from '@brandonwie/dayjs-util/event';
 
 // All-day event: strip timezone, preserve time
 const allDay = EventDateHandler.processAllDayEventDates(

@@ -1,5 +1,5 @@
 {
-  "name": "@brandonwie/date-util",
+  "name": "@brandonwie/dayjs-util",
   "version": "0.1.0",
   "description": "Timezone-safe date utility wrapper for dayjs — built for calendar applications",
   "type": "module",
