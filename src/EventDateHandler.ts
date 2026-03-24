@@ -1,4 +1,4 @@
-import { DateUtil } from "./DateUtil";
+import { DayjsUtil } from "./DayjsUtil";
 import { UTC } from "./constants";
 
 /**
@@ -24,8 +24,8 @@ export class EventDateHandler {
     zone: typeof UTC;
   } {
     return {
-      startAt: DateUtil.stripTimezoneToUTC(startDate),
-      endAt: DateUtil.stripTimezoneToUTC(endDate),
+      startAt: DayjsUtil.stripTimezoneToUTC(startDate),
+      endAt: DayjsUtil.stripTimezoneToUTC(endDate),
       zone: UTC,
     };
   }
@@ -47,8 +47,8 @@ export class EventDateHandler {
     zone: string;
   } {
     return {
-      startAt: DateUtil.convertToUTCDate(startDate),
-      endAt: DateUtil.convertToUTCDate(endDate),
+      startAt: DayjsUtil.convertToUTCDate(startDate),
+      endAt: DayjsUtil.convertToUTCDate(endDate),
       zone: timezone,
     };
   }

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DateUtil, dayjs } from "./DateUtil";
+import { DayjsUtil, dayjs } from "./DayjsUtil";
 import { EventDateHandler } from "./EventDateHandler";
 import { DATE_FORMAT, UTC } from "./constants";
 
-describe(DateUtil.name, () => {
+describe(DayjsUtil.name, () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -19,38 +19,38 @@ describe(DateUtil.name, () => {
 
   // ─── Formatting Methods ──────────────────────────────────────────
 
-  describe(DateUtil.formatISOString.name, () => {
+  describe(DayjsUtil.formatISOString.name, () => {
     it("should format date with specific timezone", () => {
-      const result = DateUtil.formatISOString(testDateString, "Asia/Seoul");
+      const result = DayjsUtil.formatISOString(testDateString, "Asia/Seoul");
       expect(result).toMatch(/2025-06-15T09:00:00\+09:00/);
     });
 
     it("should use UTC as default timezone if not specified", () => {
-      const result = DateUtil.formatISOString(testDateString);
+      const result = DayjsUtil.formatISOString(testDateString);
       expect(result).toMatch(/2025-06-15T00:00:00\+00:00/);
     });
 
     it("should handle null timezone as UTC", () => {
-      const result = DateUtil.formatISOString(testDateString, null);
+      const result = DayjsUtil.formatISOString(testDateString, null);
       expect(result).toMatch(/2025-06-15T00:00:00\+00:00/);
     });
   });
 
-  describe(DateUtil.formatUTCString.name, () => {
+  describe(DayjsUtil.formatUTCString.name, () => {
     it("should format date in UTC format", () => {
-      const result = DateUtil.formatUTCString(testDateString);
+      const result = DayjsUtil.formatUTCString(testDateString);
       expect(result).toBe(testUTCString);
     });
   });
 
-  describe(DateUtil.formatDateOnlyString.name, () => {
+  describe(DayjsUtil.formatDateOnlyString.name, () => {
     it("should format date-only string", () => {
-      const result = DateUtil.formatDateOnlyString(testDateString);
+      const result = DayjsUtil.formatDateOnlyString(testDateString);
       expect(result).toBe(testDateOnlyString);
     });
 
     it("should consider timezone when determining the date", () => {
-      const result = DateUtil.formatDateOnlyString(
+      const result = DayjsUtil.formatDateOnlyString(
         testDateString,
         "Pacific/Kiritimati",
       );
@@ -58,53 +58,53 @@ describe(DateUtil.name, () => {
     });
 
     it("should consider UTC timezone when determining the date", () => {
-      const result = DateUtil.formatDateOnlyString(testDateString2);
+      const result = DayjsUtil.formatDateOnlyString(testDateString2);
       expect(result).toBe("2025-06-14");
     });
   });
 
   // ─── Parsing Methods ─────────────────────────────────────────────
 
-  describe(DateUtil.parseToTz.name, () => {
+  describe(DayjsUtil.parseToTz.name, () => {
     it("should parse string to dayjs object", () => {
-      const result = DateUtil.parseToTz(testDateString);
+      const result = DayjsUtil.parseToTz(testDateString);
       expect(result.format()).toContain(testDateOnlyString);
     });
 
     it("should parse with specified timezone", () => {
-      const result = DateUtil.parseToTz(testDateString, "Asia/Seoul");
+      const result = DayjsUtil.parseToTz(testDateString, "Asia/Seoul");
       expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 09:00:00");
     });
   });
 
-  describe(DateUtil.utc.name, () => {
+  describe(DayjsUtil.utc.name, () => {
     it("should create dayjs object in UTC", () => {
-      const result = DateUtil.utc(testDateString);
+      const result = DayjsUtil.utc(testDateString);
       expect(result.format()).toBe("2025-06-15T00:00:00Z");
     });
 
     it("should convert Date object to UTC", () => {
       const date = new Date("2025-06-15T09:00:00+09:00");
-      const result = DateUtil.utc(date);
+      const result = DayjsUtil.utc(date);
       expect(result.format()).toBe("2025-06-15T00:00:00Z");
     });
   });
 
-  describe(DateUtil.tz.name, () => {
+  describe(DayjsUtil.tz.name, () => {
     it("should create dayjs object in specified timezone", () => {
-      const result = DateUtil.tz(testUTCString, "Asia/Seoul");
+      const result = DayjsUtil.tz(testUTCString, "Asia/Seoul");
       expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 09:00:00");
     });
 
     it("should use UTC as default timezone if not specified", () => {
-      const result = DateUtil.tz(testUTCString);
+      const result = DayjsUtil.tz(testUTCString);
       expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 00:00:00");
     });
   });
 
-  describe(DateUtil.tzParse.name, () => {
+  describe(DayjsUtil.tzParse.name, () => {
     it("should parse date string AS being in the specified timezone", () => {
-      const result = DateUtil.tzParse("2025-01-01 00:00:00", "Asia/Seoul");
+      const result = DayjsUtil.tzParse("2025-01-01 00:00:00", "Asia/Seoul");
       expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-01-01 00:00:00");
 
       const utc = result.utc();
@@ -115,8 +115,8 @@ describe(DateUtil.name, () => {
       const dateString = "2025-01-01 00:00:00";
       const timezone = "Asia/Seoul";
 
-      const tzParseResult = DateUtil.tzParse(dateString, timezone).toDate();
-      const tzResult = DateUtil.tz(dateString, timezone).toDate();
+      const tzParseResult = DayjsUtil.tzParse(dateString, timezone).toDate();
+      const tzResult = DayjsUtil.tz(dateString, timezone).toDate();
 
       expect(tzParseResult.toISOString()).toBe("2024-12-31T15:00:00.000Z");
       expect(tzResult.toISOString()).toBe("2025-01-01T00:00:00.000Z");
@@ -126,12 +126,12 @@ describe(DateUtil.name, () => {
     });
 
     it("should use UTC as default timezone if not specified", () => {
-      const result = DateUtil.tzParse("2025-01-01 00:00:00");
+      const result = DayjsUtil.tzParse("2025-01-01 00:00:00");
       expect(result.toDate().toISOString()).toBe("2025-01-01T00:00:00.000Z");
     });
 
     it("should handle America/Los_Angeles timezone (UTC-8)", () => {
-      const result = DateUtil.tzParse(
+      const result = DayjsUtil.tzParse(
         "2025-01-01 00:00:00",
         "America/Los_Angeles",
       );
@@ -140,11 +140,11 @@ describe(DateUtil.name, () => {
     });
 
     it("should be used for period bounds in recurring event expansion", () => {
-      const periodStart = DateUtil.tzParse(
+      const periodStart = DayjsUtil.tzParse(
         "2025-01-01 00:00:00",
         "Asia/Seoul",
       ).toDate();
-      const periodEnd = DateUtil.tzParse(
+      const periodEnd = DayjsUtil.tzParse(
         "2025-01-31 23:59:59",
         "Asia/Seoul",
       ).toDate();
@@ -156,37 +156,37 @@ describe(DateUtil.name, () => {
 
   // ─── Conversion Methods ──────────────────────────────────────────
 
-  describe(DateUtil.convertToUTCDate.name, () => {
+  describe(DayjsUtil.convertToUTCDate.name, () => {
     it("should convert to JavaScript Date object in UTC", () => {
-      const result = DateUtil.convertToUTCDate(testDateString);
+      const result = DayjsUtil.convertToUTCDate(testDateString);
       expect(result).toBeInstanceOf(Date);
       expect(result.toISOString()).toBe("2025-06-15T00:00:00.000Z");
     });
   });
 
-  describe(DateUtil.epoch.name, () => {
+  describe(DayjsUtil.epoch.name, () => {
     it("should return Unix epoch (1970-01-01T00:00:00Z)", () => {
-      const result = DateUtil.epoch();
+      const result = DayjsUtil.epoch();
       expect(result).toBeInstanceOf(Date);
       expect(result.toISOString()).toBe("1970-01-01T00:00:00.000Z");
       expect(result.getTime()).toBe(0);
     });
   });
 
-  describe(DateUtil.stripTimezoneToUTC.name, () => {
+  describe(DayjsUtil.stripTimezoneToUTC.name, () => {
     it("should return current UTC time when called without a date", () => {
-      const result = DateUtil.stripTimezoneToUTC();
+      const result = DayjsUtil.stripTimezoneToUTC();
       expect(result).toBeInstanceOf(Date);
     });
 
     it("should preserve time values but convert to UTC timezone", () => {
-      const result = DateUtil.stripTimezoneToUTC("2025-06-15T12:34:56");
+      const result = DayjsUtil.stripTimezoneToUTC("2025-06-15T12:34:56");
       expect(result.toISOString()).toBe("2025-06-15T12:34:56.000Z");
     });
 
     it("should preserve time values but ignore timezone info", () => {
       const dateStr = "2025-06-15T15:30:45+09:00";
-      const result = DateUtil.stripTimezoneToUTC(dateStr);
+      const result = DayjsUtil.stripTimezoneToUTC(dateStr);
       expect(result.toISOString()).toBe("2025-06-15T15:30:45.000Z");
     });
 
@@ -199,7 +199,7 @@ describe(DateUtil.name, () => {
       const seconds = 30;
 
       const dateStr = `${year}-${month + 1}-${day}T${hours}:${minutes}:${seconds}`;
-      const result = DateUtil.stripTimezoneToUTC(dateStr);
+      const result = DayjsUtil.stripTimezoneToUTC(dateStr);
 
       expect(result.getUTCFullYear()).toBe(year);
       expect(result.getUTCMonth()).toBe(month);
@@ -212,28 +212,28 @@ describe(DateUtil.name, () => {
 
   // ─── extractDateOnlyString ───────────────────────────────────────
 
-  describe(DateUtil.extractDateOnlyString.name, () => {
+  describe(DayjsUtil.extractDateOnlyString.name, () => {
     describe("timezone-agnostic date extraction", () => {
       it("should extract date without timezone conversion for KST input", () => {
-        const result = DateUtil.extractDateOnlyString(
+        const result = DayjsUtil.extractDateOnlyString(
           "2025-08-11T00:00:00.000+09:00",
         );
         expect(result).toBe("2025-08-11");
       });
 
       it("should extract date without timezone conversion for UTC input", () => {
-        const result = DateUtil.extractDateOnlyString(
+        const result = DayjsUtil.extractDateOnlyString(
           "2025-08-11T00:00:00.000Z",
         );
         expect(result).toBe("2025-08-11");
       });
 
       it("should handle date at UTC/KST boundary correctly", () => {
-        expect(DateUtil.extractDateOnlyString("2025-08-10T15:00:00.000Z")).toBe(
-          "2025-08-10",
-        );
         expect(
-          DateUtil.extractDateOnlyString("2025-08-11T00:00:00.000+09:00"),
+          DayjsUtil.extractDateOnlyString("2025-08-10T15:00:00.000Z"),
+        ).toBe("2025-08-10");
+        expect(
+          DayjsUtil.extractDateOnlyString("2025-08-11T00:00:00.000+09:00"),
         ).toBe("2025-08-11");
       });
 
@@ -247,26 +247,28 @@ describe(DateUtil.name, () => {
         ];
 
         testCases.forEach(({ input, expected }) => {
-          expect(DateUtil.extractDateOnlyString(input)).toBe(expected);
+          expect(DayjsUtil.extractDateOnlyString(input)).toBe(expected);
         });
       });
 
       it("should handle Date objects correctly", () => {
         const date = new Date("2025-08-11T00:00:00.000Z");
-        const result = DateUtil.extractDateOnlyString(date);
+        const result = DayjsUtil.extractDateOnlyString(date);
         expect(result).toBe("2025-08-11");
       });
 
       it("should handle edge cases", () => {
         const todayUTC = new Date().toISOString().split("T")[0];
-        expect(DateUtil.extractDateOnlyString()).toBe(todayUTC);
-        expect(DateUtil.extractDateOnlyString("2025-08-11")).toBe("2025-08-11");
-        expect(DateUtil.extractDateOnlyString("2025-08-11 15:30:00")).toBe(
+        expect(DayjsUtil.extractDateOnlyString()).toBe(todayUTC);
+        expect(DayjsUtil.extractDateOnlyString("2025-08-11")).toBe(
+          "2025-08-11",
+        );
+        expect(DayjsUtil.extractDateOnlyString("2025-08-11 15:30:00")).toBe(
           "2025-08-11",
         );
 
         const timestamp = new Date("2025-08-11T00:00:00Z").getTime();
-        const result = DateUtil.extractDateOnlyString(timestamp);
+        const result = DayjsUtil.extractDateOnlyString(timestamp);
         expect(result).toMatch(/\d{4}-\d{2}-\d{2}/);
       });
     });
@@ -275,10 +277,10 @@ describe(DateUtil.name, () => {
       it("should produce different results for all-day events", () => {
         const kstMidnight = "2025-08-11T00:00:00.000+09:00";
 
-        const extracted = DateUtil.extractDateOnlyString(kstMidnight);
+        const extracted = DayjsUtil.extractDateOnlyString(kstMidnight);
         expect(extracted).toBe("2025-08-11");
 
-        const converted = DateUtil.convertToUTCDate(kstMidnight);
+        const converted = DayjsUtil.convertToUTCDate(kstMidnight);
         const convertedDateStr = converted.toISOString().split("T")[0];
         expect(convertedDateStr).toBe("2025-08-10");
       });
@@ -286,7 +288,7 @@ describe(DateUtil.name, () => {
 
     describe("edge cases", () => {
       it("should handle non-ISO string with date pattern", () => {
-        const result = DateUtil.extractDateOnlyString(
+        const result = DayjsUtil.extractDateOnlyString(
           "Event on 2025-08-15 at 10am",
         );
         expect(result).toBe("2025-08-15");
@@ -294,20 +296,20 @@ describe(DateUtil.name, () => {
 
       it("should handle dayjs object", () => {
         const dayjsDate = dayjs("2025-08-15T10:00:00");
-        const result = DateUtil.extractDateOnlyString(dayjsDate);
+        const result = DayjsUtil.extractDateOnlyString(dayjsDate);
         expect(result).toBe("2025-08-15");
       });
 
       it("should handle non-date object with toString containing date", () => {
         const customObject = { toString: () => "Custom date: 2025-08-15" };
-        const result = DateUtil.extractDateOnlyString(
+        const result = DayjsUtil.extractDateOnlyString(
           customObject as unknown as string,
         );
         expect(result).toBe("2025-08-15");
       });
 
       it("should return current UTC date for invalid input", () => {
-        const result = DateUtil.extractDateOnlyString("no date here");
+        const result = DayjsUtil.extractDateOnlyString("no date here");
         expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       });
     });
@@ -315,97 +317,100 @@ describe(DateUtil.name, () => {
 
   // ─── Comparison Methods ──────────────────────────────────────────
 
-  describe(DateUtil.isSame.name, () => {
+  describe(DayjsUtil.isSame.name, () => {
     it("should return true if two dates are the same (default: ms)", () => {
-      const d1 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      expect(DateUtil.isSame(d1, d2)).toBe(true);
+      const d1 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      expect(DayjsUtil.isSame(d1, d2)).toBe(true);
     });
 
     it("should return false if two dates are different", () => {
-      const d1 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T10:00:00+09:00", "Asia/Seoul");
-      expect(DateUtil.isSame(d1, d2)).toBe(false);
+      const d1 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T10:00:00+09:00", "Asia/Seoul");
+      expect(DayjsUtil.isSame(d1, d2)).toBe(false);
     });
 
     it("should return true if two dates are in the same day (unit: day)", () => {
-      const d1 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T23:59:59+09:00", "Asia/Seoul");
-      expect(DateUtil.isSame(d1, d2, "day")).toBe(true);
+      const d1 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T23:59:59+09:00", "Asia/Seoul");
+      expect(DayjsUtil.isSame(d1, d2, "day")).toBe(true);
     });
 
     it("should return false if two dates are in different days (unit: day)", () => {
-      const d1 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-16T00:00:00+09:00", "Asia/Seoul");
-      expect(DateUtil.isSame(d1, d2, "day")).toBe(false);
+      const d1 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-16T00:00:00+09:00", "Asia/Seoul");
+      expect(DayjsUtil.isSame(d1, d2, "day")).toBe(false);
     });
   });
 
-  describe(DateUtil.diff.name, () => {
+  describe(DayjsUtil.diff.name, () => {
     it("should return 0 if two dates are the same (default: ms)", () => {
-      const d1 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      expect(DateUtil.diff(d1, d2)).toBe(0);
+      const d1 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      expect(DayjsUtil.diff(d1, d2)).toBe(0);
     });
 
     it("should return positive ms if first date is after second", () => {
-      const d1 = DateUtil.tz("2025-06-15T10:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      expect(DateUtil.diff(d1, d2)).toBe(3600000);
+      const d1 = DayjsUtil.tz("2025-06-15T10:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      expect(DayjsUtil.diff(d1, d2)).toBe(3600000);
     });
 
     it("should return negative ms if first date is before second", () => {
-      const d1 = DateUtil.tz("2025-06-15T08:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      expect(DateUtil.diff(d1, d2)).toBe(-3600000);
+      const d1 = DayjsUtil.tz("2025-06-15T08:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      expect(DayjsUtil.diff(d1, d2)).toBe(-3600000);
     });
 
     it("should return diff in days if unit is day", () => {
-      const d1 = DateUtil.tz("2025-06-16T09:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      expect(DateUtil.diff(d1, d2, "day")).toBe(1);
+      const d1 = DayjsUtil.tz("2025-06-16T09:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      expect(DayjsUtil.diff(d1, d2, "day")).toBe(1);
     });
 
     it("should return 0 if same day (unit: day)", () => {
-      const d1 = DateUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
-      const d2 = DateUtil.tz("2025-06-15T23:59:59+09:00", "Asia/Seoul");
-      expect(DateUtil.diff(d1, d2, "day")).toBe(0);
+      const d1 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
+      const d2 = DayjsUtil.tz("2025-06-15T23:59:59+09:00", "Asia/Seoul");
+      expect(DayjsUtil.diff(d1, d2, "day")).toBe(0);
     });
   });
 
   // ─── Validation ──────────────────────────────────────────────────
 
-  describe(DateUtil.isValidDateFormat.name, () => {
+  describe(DayjsUtil.isValidDateFormat.name, () => {
     it("should validate DATE format", () => {
-      expect(DateUtil.isValidDateFormat("2025-06-15", DATE_FORMAT.DATE)).toBe(
+      expect(DayjsUtil.isValidDateFormat("2025-06-15", DATE_FORMAT.DATE)).toBe(
         true,
       );
-      expect(DateUtil.isValidDateFormat("2025-6-15", DATE_FORMAT.DATE)).toBe(
+      expect(DayjsUtil.isValidDateFormat("2025-6-15", DATE_FORMAT.DATE)).toBe(
         false,
       );
-      expect(DateUtil.isValidDateFormat("not-a-date", DATE_FORMAT.DATE)).toBe(
+      expect(DayjsUtil.isValidDateFormat("not-a-date", DATE_FORMAT.DATE)).toBe(
         false,
       );
     });
 
     it("should validate DATETIME format", () => {
       expect(
-        DateUtil.isValidDateFormat("2025-06-15T09:00:00", DATE_FORMAT.DATETIME),
+        DayjsUtil.isValidDateFormat(
+          "2025-06-15T09:00:00",
+          DATE_FORMAT.DATETIME,
+        ),
       ).toBe(true);
       expect(
-        DateUtil.isValidDateFormat("2025-06-15", DATE_FORMAT.DATETIME),
+        DayjsUtil.isValidDateFormat("2025-06-15", DATE_FORMAT.DATETIME),
       ).toBe(false);
     });
 
     it("should validate DATETIME_MS format", () => {
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00.000",
           DATE_FORMAT.DATETIME_MS,
         ),
       ).toBe(true);
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00",
           DATE_FORMAT.DATETIME_MS,
         ),
@@ -414,13 +419,13 @@ describe(DateUtil.name, () => {
 
     it("should validate DATETIME_UTC format (Z suffix, no ms)", () => {
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00Z",
           DATE_FORMAT.DATETIME_UTC,
         ),
       ).toBe(true);
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00",
           DATE_FORMAT.DATETIME_UTC,
         ),
@@ -429,19 +434,19 @@ describe(DateUtil.name, () => {
 
     it("should validate DATETIME_OFFSET format (offset, no ms)", () => {
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00+09:00",
           DATE_FORMAT.DATETIME_OFFSET,
         ),
       ).toBe(true);
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00-05:00",
           DATE_FORMAT.DATETIME_OFFSET,
         ),
       ).toBe(true);
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00Z",
           DATE_FORMAT.DATETIME_OFFSET,
         ),
@@ -450,19 +455,19 @@ describe(DateUtil.name, () => {
 
     it("should validate DATETIME_MS_UTC format (.toISOString() output)", () => {
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00.000Z",
           DATE_FORMAT.DATETIME_MS_UTC,
         ),
       ).toBe(true);
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00Z",
           DATE_FORMAT.DATETIME_MS_UTC,
         ),
       ).toBe(false);
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00.000+09:00",
           DATE_FORMAT.DATETIME_MS_UTC,
         ),
@@ -471,13 +476,13 @@ describe(DateUtil.name, () => {
 
     it("should validate DATETIME_MS_OFFSET format (full precision with offset)", () => {
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00.000+09:00",
           DATE_FORMAT.DATETIME_MS_OFFSET,
         ),
       ).toBe(true);
       expect(
-        DateUtil.isValidDateFormat(
+        DayjsUtil.isValidDateFormat(
           "2025-06-15T09:00:00.000Z",
           DATE_FORMAT.DATETIME_MS_OFFSET,
         ),
@@ -490,11 +495,11 @@ describe(DateUtil.name, () => {
   describe("DST transitions", () => {
     it("should handle US spring-forward (March 2025)", () => {
       // US DST: clocks spring forward at 2:00 AM → 3:00 AM on March 9, 2025
-      const beforeDST = DateUtil.tzParse(
+      const beforeDST = DayjsUtil.tzParse(
         "2025-03-09 01:30:00",
         "America/New_York",
       );
-      const afterDST = DateUtil.tzParse(
+      const afterDST = DayjsUtil.tzParse(
         "2025-03-09 03:30:00",
         "America/New_York",
       );
@@ -508,11 +513,11 @@ describe(DateUtil.name, () => {
 
     it("should handle US fall-back (November 2025)", () => {
       // US DST: clocks fall back at 2:00 AM → 1:00 AM on November 2, 2025
-      const beforeFallback = DateUtil.tzParse(
+      const beforeFallback = DayjsUtil.tzParse(
         "2025-11-02 00:30:00",
         "America/New_York",
       );
-      const afterFallback = DateUtil.tzParse(
+      const afterFallback = DayjsUtil.tzParse(
         "2025-11-02 02:30:00",
         "America/New_York",
       );
@@ -527,7 +532,7 @@ describe(DateUtil.name, () => {
     it("should handle tz() correctly across DST boundary", () => {
       // A UTC time that falls during the DST transition window
       const utcTime = "2025-03-09T07:00:00Z"; // 3:00 AM EDT (after spring forward)
-      const result = DateUtil.tz(utcTime, "America/New_York");
+      const result = DayjsUtil.tz(utcTime, "America/New_York");
       expect(result.format("HH:mm")).toBe("03:00");
     });
   });
@@ -536,31 +541,31 @@ describe(DateUtil.name, () => {
 
   describe("invalid inputs", () => {
     it("should handle undefined gracefully", () => {
-      expect(DateUtil.formatUTCString(undefined)).toMatch(
+      expect(DayjsUtil.formatUTCString(undefined)).toMatch(
         /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/,
       );
-      expect(DateUtil.utc(undefined).isValid()).toBe(true);
+      expect(DayjsUtil.utc(undefined).isValid()).toBe(true);
     });
 
     it("should handle empty string", () => {
-      const result = DateUtil.utc("");
+      const result = DayjsUtil.utc("");
       // dayjs("") returns Invalid Date
       expect(result.isValid()).toBe(false);
     });
 
     it("should handle malformed date string", () => {
-      const result = DateUtil.utc("not-a-date");
+      const result = DayjsUtil.utc("not-a-date");
       expect(result.isValid()).toBe(false);
     });
 
     it("extractDateOnlyString should return current date for empty string", () => {
-      const result = DateUtil.extractDateOnlyString("");
+      const result = DayjsUtil.extractDateOnlyString("");
       // Empty string is falsy → returns current UTC date
       expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
     it("convertToUTCDate should return a Date even for invalid input", () => {
-      const result = DateUtil.convertToUTCDate("garbage");
+      const result = DayjsUtil.convertToUTCDate("garbage");
       expect(result).toBeInstanceOf(Date);
       // Invalid Date has NaN time
       expect(isNaN(result.getTime())).toBe(true);

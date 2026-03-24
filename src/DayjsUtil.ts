@@ -17,14 +17,14 @@ dayjs.extend(isSameOrAfter);
 /**
  * Static utility class for date and time operations.
  *
- * Use DateUtil for ALL date operations. Never use `new Date()` directly.
+ * Use DayjsUtil for ALL date operations. Never use `new Date()` directly.
  *
  * Key design decisions:
  * - Static class (not singleton) — dayjs instances are created per-call by design
  * - Immutable operations — safe chaining without side effects
  * - Explicit timezone handling — no ambiguity
  */
-export class DateUtil {
+export class DayjsUtil {
   private static readonly ISO_FORMAT_WITH_OFFSET = "YYYY-MM-DDTHH:mm:ssZ";
   private static readonly UTC_FORMAT = "YYYY-MM-DDTHH:mm:ss[Z]";
   private static readonly DATE_ONLY_FORMAT = "YYYY-MM-DD";
@@ -148,7 +148,7 @@ export class DateUtil {
    *
    * @example
    * // Server is in UTC. Input: "2025-01-01 00:00:00"
-   * DateUtil.tz("2025-01-01 00:00:00", "Asia/Seoul")
+   * DayjsUtil.tz("2025-01-01 00:00:00", "Asia/Seoul")
    * // Parses as 2025-01-01 00:00:00 UTC, displays as 2025-01-01 09:00:00 KST
    * // toDate() returns: 2025-01-01 00:00:00 UTC (same instant)
    */
@@ -169,7 +169,7 @@ export class DateUtil {
    * @returns Dayjs object representing that moment in time
    *
    * @example
-   * DateUtil.tzParse("2025-01-01 00:00:00", "Asia/Seoul")
+   * DayjsUtil.tzParse("2025-01-01 00:00:00", "Asia/Seoul")
    * // Returns: Dayjs representing 2025-01-01 00:00:00 KST
    * // toDate() returns: 2024-12-31 15:00:00 UTC (9 hours earlier)
    */

@@ -4,12 +4,12 @@ Timezone-safe date utility wrapper for [dayjs](https://day.js.org/) — built fo
 
 ## Why not just use dayjs directly?
 
-| Concern                     | Raw dayjs                                       | This library                                              |
-| --------------------------- | ----------------------------------------------- | --------------------------------------------------------- |
-| **Timezone ambiguity**      | `dayjs("2025-01-01")` — UTC? Local? Seoul?      | `DateUtil.tzParse("2025-01-01", "Asia/Seoul")` — explicit |
-| **All-day vs timed events** | No built-in distinction                         | `stripTimezoneToUTC()` vs `convertToUTCDate()`            |
-| **Plugin setup**            | Must remember `extend(utc)`, `extend(timezone)` | Auto-loaded once at import                                |
-| **Return type clarity**     | Everything returns `Dayjs`                      | `*Date` → JS Date, `*String` → string, bare → Dayjs       |
+| Concern                     | Raw dayjs                                       | This library                                               |
+| --------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
+| **Timezone ambiguity**      | `dayjs("2025-01-01")` — UTC? Local? Seoul?      | `DayjsUtil.tzParse("2025-01-01", "Asia/Seoul")` — explicit |
+| **All-day vs timed events** | No built-in distinction                         | `stripTimezoneToUTC()` vs `convertToUTCDate()`             |
+| **Plugin setup**            | Must remember `extend(utc)`, `extend(timezone)` | Auto-loaded once at import                                 |
+| **Return type clarity**     | Everything returns `Dayjs`                      | `*Date` → JS Date, `*String` → string, bare → Dayjs        |
 
 ## Install
 
@@ -24,23 +24,23 @@ npm install @brandonwie/dayjs-util dayjs
 ## Quick Start
 
 ```typescript
-import { DateUtil } from "@brandonwie/dayjs-util";
+import { DayjsUtil } from "@brandonwie/dayjs-util";
 
 // Parse a date AS being in a specific timezone
-const seoulMidnight = DateUtil.tzParse("2025-01-01 00:00:00", "Asia/Seoul");
+const seoulMidnight = DayjsUtil.tzParse("2025-01-01 00:00:00", "Asia/Seoul");
 // → Dayjs representing 2025-01-01 00:00:00 KST (2024-12-31 15:00:00 UTC)
 
 // Convert to UTC Date for database storage
-const utcDate = DateUtil.convertToUTCDate("2025-06-15T09:00:00+09:00");
+const utcDate = DayjsUtil.convertToUTCDate("2025-06-15T09:00:00+09:00");
 // → Date(2025-06-15T00:00:00.000Z)
 
 // All-day events: preserve time, strip timezone
-const allDay = DateUtil.stripTimezoneToUTC("2025-06-15T00:00:00+09:00");
+const allDay = DayjsUtil.stripTimezoneToUTC("2025-06-15T00:00:00+09:00");
 // → Date(2025-06-15T00:00:00.000Z)  ← time preserved!
 
 // Format for API responses
-DateUtil.formatUTCString(new Date()); // "2025-06-15T00:00:00Z"
-DateUtil.formatISOString(new Date(), "Asia/Seoul"); // "2025-06-15T09:00:00+09:00"
+DayjsUtil.formatUTCString(new Date()); // "2025-06-15T00:00:00Z"
+DayjsUtil.formatISOString(new Date(), "Asia/Seoul"); // "2025-06-15T09:00:00+09:00"
 ```
 
 ## API Reference
@@ -60,11 +60,11 @@ DateUtil.formatISOString(new Date(), "Asia/Seoul"); // "2025-06-15T09:00:00+09:0
 const str = "2025-01-01 00:00:00";
 
 // tz(): parses in server timezone, converts display to Seoul
-DateUtil.tz(str, "Asia/Seoul").toDate();
+DayjsUtil.tz(str, "Asia/Seoul").toDate();
 // → 2025-01-01T00:00:00.000Z (if server is UTC)
 
 // tzParse(): interprets the string AS Seoul time
-DateUtil.tzParse(str, "Asia/Seoul").toDate();
+DayjsUtil.tzParse(str, "Asia/Seoul").toDate();
 // → 2024-12-31T15:00:00.000Z (9 hours earlier!)
 ```
 
@@ -144,18 +144,18 @@ const [start, end, zone] = EventDateHandler.computeScheduleDates({
 });
 ```
 
-## Migration Guide: `new Date()` → DateUtil
+## Migration Guide: `new Date()` → DayjsUtil
 
-| Before                             | After                                  | Why                                 |
-| ---------------------------------- | -------------------------------------- | ----------------------------------- |
-| `new Date()`                       | `DateUtil.utc().toDate()`              | Explicit UTC, no local tz ambiguity |
-| `new Date(str)`                    | `DateUtil.utc(str).toDate()`           | Consistent parsing                  |
-| `new Date(str).toISOString()`      | `DateUtil.formatUTCString(str)`        | Same result, cleaner API            |
-| `date.toISOString().split('T')[0]` | `DateUtil.extractDateOnlyString(date)` | Handles all input types             |
-| `new Date(0)`                      | `DateUtil.epoch()`                     | Self-documenting sentinel           |
-| `d1.getTime() - d2.getTime()`      | `DateUtil.diff(d1, d2, 'ms')`          | Readable, unit-aware                |
-| Manual offset math                 | `DateUtil.tz(date, 'Asia/Seoul')`      | IANA timezone, DST-safe             |
-| `dayjs(str).tz(tz)`                | `DateUtil.tzParse(str, tz)`            | Correct semantics (see above)       |
+| Before                             | After                                   | Why                                 |
+| ---------------------------------- | --------------------------------------- | ----------------------------------- |
+| `new Date()`                       | `DayjsUtil.utc().toDate()`              | Explicit UTC, no local tz ambiguity |
+| `new Date(str)`                    | `DayjsUtil.utc(str).toDate()`           | Consistent parsing                  |
+| `new Date(str).toISOString()`      | `DayjsUtil.formatUTCString(str)`        | Same result, cleaner API            |
+| `date.toISOString().split('T')[0]` | `DayjsUtil.extractDateOnlyString(date)` | Handles all input types             |
+| `new Date(0)`                      | `DayjsUtil.epoch()`                     | Self-documenting sentinel           |
+| `d1.getTime() - d2.getTime()`      | `DayjsUtil.diff(d1, d2, 'ms')`          | Readable, unit-aware                |
+| Manual offset math                 | `DayjsUtil.tz(date, 'Asia/Seoul')`      | IANA timezone, DST-safe             |
+| `dayjs(str).tz(tz)`                | `DayjsUtil.tzParse(str, tz)`            | Correct semantics (see above)       |
 
 ## Design Decisions
 
