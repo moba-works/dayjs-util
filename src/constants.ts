@@ -1,5 +1,10 @@
 export const UTC = "UTC" as const;
 
+/** RRULE day-of-week abbreviations (RFC 5545 order: Sunday first) */
+export const RRULE_DAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
+
+export type RRuleDay = (typeof RRULE_DAYS)[number];
+
 export const DATE_FORMAT = {
   /** Date only: 2025-01-01 */
   DATE: "YYYY-MM-DD",

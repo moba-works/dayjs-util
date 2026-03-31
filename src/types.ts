@@ -1,4 +1,4 @@
-import type { Dayjs } from "dayjs";
+import type { Dayjs, ManipulateType } from "dayjs";
 
 /** Accepted date input types across all DateUtil methods */
 export type DateInput = Date | string | number | Dayjs;
@@ -9,3 +9,6 @@ export type DateInput = Date | string | number | Dayjs;
  * - Pass null or omit to default to UTC
  */
 export type TimezoneString = string | null;
+
+/** Re-export ManipulateType for add/subtract operations */
+export type { ManipulateType };
