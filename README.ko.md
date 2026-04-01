@@ -47,6 +47,7 @@ npm install @brandonwie/dayjs-util dayjs
   - [toAllDayUTC](#toalldayutcstart-end) | [toTimedUTC](#totimedutcstart-end-timezone) | [normalize](#normalizeparams)
 - [마이그레이션 가이드](#마이그레이션-가이드-new-date--dayjsutil)
 - [설계 결정](#설계-결정)
+- [DST 처리 방식](#dst-처리-방식)
 - [v0.4.0 주요 변경 사항](#v040-주요-변경-사항)
 - [참고 자료](#참고-자료)
 - [라이선스](#라이선스)
@@ -585,6 +586,61 @@ EventDateHandler.normalize({
 - **dayjs peer dependency** — 사용자가 버전 관리, 중복 방지
 - **Dual CJS/ESM** — Node.js, 브라우저, 번들러 모두 지원
 - **트리 셰이킹 지원** — 최적 번들링을 위한 `sideEffects: false`; `EventDateHandler`는 `/event` 엔트리 포인트로 별도 import 가능
+
+## DST 처리 방식
+
+이 라이브러리는 모든 타임존 인식 메서드가 연산 **이전에** 타임존을 적용하기 때문에
+DST에 안전합니다. 실제 DST 해석은 다음 체인으로 위임됩니다:
+
+```
+DayjsUtil → dayjs timezone 플러그인 → Intl.DateTimeFormat → OS/ICU 타임존 데이터
+```
+
+이 라이브러리는 자체 타임존 데이터베이스를 내장하지 않습니다. JavaScript 런타임의
+[`Intl.DateTimeFormat`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
+API에 의존하며, 이는 운영체제의
+[IANA 타임존 데이터베이스](https://www.iana.org/time-zones) 사본에서 DST 규칙을
+읽습니다.
+
+### DST에서 `timezone` 매개변수가 중요한 이유
+
+ISO 8601 문자열의 오프셋(예: `-05:00`)은 입력을 정확한 UTC 시점으로 변환합니다.
+`timezone` 매개변수는 산술 연산에서 어떤 캘린더/시계 규칙을 따를지 지정합니다.
+이 둘은 다른 역할입니다:
+
+```typescript
+// 프론트엔드가 뉴욕 시간을 오프셋과 함께 전송 (EST = -05:00)
+DayjsUtil.add("2025-03-09T01:00:00-05:00", 1, "day", "America/New_York");
+// → 3월 10일 오전 1:00 EDT (-04:00, DST 적용됨)
+// → 내부값: 2025-03-10T05:00:00Z (24시간이 아닌 23시간)
+
+// timezone 없이: 단순 +24시간 계산
+DayjsUtil.add("2025-03-09T01:00:00-05:00", 1, "day");
+// → 3월 10일 오전 2:00 EDT (벽시계 시간이 1시간 밀림)
+```
+
+"매일 오전 1시 이벤트"를 표시하는 캘린더에서 이 1시간 차이는 중요합니다.
+
+### DST 인식 메서드
+
+| 메서드                            | DST가 중요한 이유                                    |
+| --------------------------------- | ---------------------------------------------------- |
+| `add` / `subtract`                | DST 경계에서 벽시계 시간 보존                        |
+| `startOf` / `endOf`               | 자정은 타임존의 DST 상태에 따라 달라짐               |
+| `isSame` / `isBefore` / `isAfter` | "같은 날" 경계가 DST에 따라 이동                     |
+| `remainingDays`                   | `ms / 86400000`이 아닌 캘린더 일 차이 사용           |
+| `toTimedUTC` (EventDateHandler)   | 오프셋 없는 datetime 파싱 시 `dayjs.tz()`로 DST 해석 |
+
+### 엣지 케이스
+
+| 경우                                                         | 동작                                                                    |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| **모호한 시간** (가을 전환 중복, 예: 오전 1:30이 두 번 발생) | dayjs가 첫 번째 발생(전환 전)을 선택                                    |
+| **존재하지 않는 시간** (봄 전환 건너뜀, 예: 오전 2:30 생략)  | dayjs가 다음 유효 시간으로 이동                                         |
+| **오래된 타임존 데이터**                                     | Node.js 또는 OS 업데이트 필요; 이 라이브러리는 자체 데이터베이스 미포함 |
+
+> **참고:** DST를 적용하지 않는 타임존(예: `Asia/Seoul`, `UTC`)은 영향을 받지
+> 않습니다. `timezone` 매개변수는 여전히 작동하며, 고정 오프셋만 적용됩니다.
 
 ## v0.4.0 주요 변경 사항
 
