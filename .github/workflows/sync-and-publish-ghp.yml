@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      workflows: write
     outputs:
       updated: ${{ steps.check.outputs.updated }}
     steps:
@@ -38,6 +37,11 @@ jobs:
           UPSTREAM=$(git rev-parse upstream/main)
           if [ "$LOCAL" != "$UPSTREAM" ]; then
             git merge upstream/main --no-edit
+            # Remove upstream-only workflow files (GITHUB_TOKEN cannot push workflow changes)
+            if git diff HEAD~1 --name-only | grep -q 'claude'; then
+              git rm -f .github/workflows/claude.yml .github/workflows/claude-code-review.yml 2>/dev/null || true
+              git commit -m "chore: exclude upstream-only Claude workflow files from fork" --allow-empty
+            fi
             git push origin main
             echo "updated=true" >> "$GITHUB_OUTPUT"
           else
