@@ -1,0 +1,64 @@
+name: Feature Request
+description: Suggest a new method or enhancement for @brandonwie/dayjs-util
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Note:** `EventDateHandler` (`@brandonwie/dayjs-util/event`) is under active review for redesign.
+        > If your request involves calendar event date processing, please open a discussion first.
+
+  - type: dropdown
+    id: entry-point
+    attributes:
+      label: Entry point affected
+      description: Which part of the library does this feature relate to?
+      options:
+        - DayjsUtil (core)
+        - EventDateHandler (event subexport)
+        - Both
+        - New entry point
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Problem / Use case
+      description: >
+        Describe the problem or use case this feature would address.
+        What are you trying to do that isn't possible or is difficult today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-api
+    attributes:
+      label: Proposed API
+      description: >
+        What should the method look like? Follow the naming conventions:
+        `*Date` → returns JS Date, `*String` → returns string, bare → returns Dayjs.
+      render: ts
+      value: |
+        // Example:
+        // DayjsUtil.methodName(date: DateInput, timezone: TimezoneString): ReturnType
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or alternative approaches have you tried?
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any other context, references, or examples from other libraries.
+    validations:
+      required: false

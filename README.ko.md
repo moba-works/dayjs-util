@@ -586,6 +586,7 @@ EventDateHandler.normalize({
 - **dayjs peer dependency** — 사용자가 버전 관리, 중복 방지
 - **Dual CJS/ESM** — Node.js, 브라우저, 번들러 모두 지원
 - **트리 셰이킹 지원** — 최적 번들링을 위한 `sideEffects: false`; `EventDateHandler`는 `/event` 엔트리 포인트로 별도 import 가능
+- **gzip 기준 ~7.7 kB** — dayjs 코어 + 플러그인 6개 + 이 라이브러리의 총 프로덕션 번들 크기 (esbuild minify + gzip 측정)
 
 ## DST 처리 방식
 
@@ -675,6 +676,10 @@ if (result) {
   const { start, end, timezone } = result;
 }
 ```
+
+## 기여하기
+
+기여를 환영합니다! 이슈나 풀 리퀘스트를 제출하기 전에 [기여 가이드](./CONTRIBUTING.md)를 읽어주세요. [버그 리포트](https://github.com/brandonwie/dayjs-util/issues/new?template=bug_report.yml)와 [기능 요청](https://github.com/brandonwie/dayjs-util/issues/new?template=feature_request.yml) 이슈 템플릿을 제공하고 있습니다.
 
 ## 참고 자료
 

@@ -586,6 +586,7 @@ EventDateHandler.normalize({
 - **Peer dependency on dayjs** — consumers control the version, no duplication
 - **Dual CJS/ESM** — works in Node.js, browsers, and bundlers
 - **Tree-shakeable** — `sideEffects: false` for optimal bundling; `EventDateHandler` can be imported separately via `/event` entry point
+- **~7.7 kB gzipped** total production cost — dayjs core + 6 plugins + this library, measured with esbuild minify + gzip
 
 ## How DST is Handled
 
@@ -674,6 +675,10 @@ if (result) {
   const { start, end, timezone } = result;
 }
 ```
+
+## Contributing
+
+Contributions are welcome! Please read the [Contributing Guide](./CONTRIBUTING.md) before submitting issues or pull requests. We have issue templates for [bug reports](https://github.com/brandonwie/dayjs-util/issues/new?template=bug_report.yml) and [feature requests](https://github.com/brandonwie/dayjs-util/issues/new?template=feature_request.yml) to help you get started.
 
 ## References
 
