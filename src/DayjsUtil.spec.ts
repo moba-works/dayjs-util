@@ -1260,90 +1260,195 @@ describe(DayjsUtil.name, () => {
 // ─── EventDateHandler ────────────────────────────────────────────
 
 describe(EventDateHandler.name, () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
+  // ─── toAllDayUTC ─────────────────────────────────────────────
 
-  it("should process null time input", () => {
-    const result = EventDateHandler.computeScheduleDates({
-      startAt: undefined,
-      endAt: undefined,
-      timeZone: UTC,
-    });
-    expect(result[0]).toBe(null);
-    expect(result[1]).toBe(null);
-    expect(result[2]).toBe(UTC);
-  });
-
-  describe("computeScheduleDates", () => {
-    it("should process all-day event dates correctly", () => {
-      const result = EventDateHandler.computeScheduleDates({
-        startAt: "2025-08-15T00:00:00",
-        endAt: "2025-08-16T00:00:00",
-        timeZone: UTC,
-        isAllDay: true,
-      });
-
-      expect(result).toHaveLength(3);
-      expect(result[0]).toBeInstanceOf(Date);
-      expect(result[1]).toBeInstanceOf(Date);
-      expect(result[2]).toBe(UTC);
+  describe("toAllDayUTC", () => {
+    it("should handle plain date string (Google Calendar)", () => {
+      const result = EventDateHandler.toAllDayUTC("2025-06-15", "2025-06-16");
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
+      expect(result.timezone).toBe(UTC);
     });
 
-    it("should handle timed events with timezone", () => {
-      const timezone = "America/New_York";
-      const result = EventDateHandler.computeScheduleDates({
-        startAt: "2025-08-15T10:00:00",
-        endAt: "2025-08-15T11:00:00",
-        timeZone: timezone,
-        isAllDay: false,
-      });
-
-      expect(result).toHaveLength(3);
-      expect(result[0]).toBeInstanceOf(Date);
-      expect(result[1]).toBeInstanceOf(Date);
-      expect(result[2]).toBe(timezone);
-    });
-
-    it("should preserve time for all-day events (strip timezone)", () => {
-      const result = EventDateHandler.computeScheduleDates({
-        startAt: "2025-08-15T00:00:00+09:00",
-        endAt: "2025-08-16T00:00:00+09:00",
-        timeZone: "Asia/Seoul",
-        isAllDay: true,
-      });
-
-      // All-day: time preserved as-is, timezone stripped
-      expect(result[0]?.toISOString()).toBe("2025-08-15T00:00:00.000Z");
-      expect(result[1]?.toISOString()).toBe("2025-08-16T00:00:00.000Z");
-      expect(result[2]).toBe(UTC);
-    });
-  });
-
-  describe(EventDateHandler.processAllDayEventDates.name, () => {
-    it("should strip timezone and preserve time", () => {
-      const result = EventDateHandler.processAllDayEventDates(
+    it("should handle datetime with offset (extract date, ignore offset)", () => {
+      const result = EventDateHandler.toAllDayUTC(
         "2025-06-15T00:00:00+09:00",
         "2025-06-16T00:00:00+09:00",
       );
+      // Date is June 15 from the string literal, NOT June 14 (UTC conversion)
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
+      expect(result.timezone).toBe(UTC);
+    });
 
-      expect(result.startAt.toISOString()).toBe("2025-06-15T00:00:00.000Z");
-      expect(result.endAt.toISOString()).toBe("2025-06-16T00:00:00.000Z");
-      expect(result.zone).toBe(UTC);
+    it("should handle datetime UTC", () => {
+      const result = EventDateHandler.toAllDayUTC(
+        "2025-06-15T00:00:00Z",
+        "2025-06-16T00:00:00Z",
+      );
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
+    });
+
+    it("should handle bare datetime without offset (Microsoft Graph)", () => {
+      const result = EventDateHandler.toAllDayUTC(
+        "2025-06-15T00:00:00",
+        "2025-06-16T00:00:00",
+      );
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
+    });
+
+    it("should handle compact iCal format (RFC 5545 VALUE=DATE)", () => {
+      const result = EventDateHandler.toAllDayUTC("20250615", "20250616");
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
+    });
+
+    it("should handle Date object input", () => {
+      const result = EventDateHandler.toAllDayUTC(
+        new Date("2025-06-15T00:00:00Z"),
+        new Date("2025-06-16T00:00:00Z"),
+      );
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
+    });
+
+    it("should zero out time for non-midnight datetime (edge case)", () => {
+      const result = EventDateHandler.toAllDayUTC(
+        "2025-06-15T09:00:00+09:00",
+        "2025-06-16T09:00:00+09:00",
+      );
+      // Time components zeroed — all-day events are dates, not moments
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
     });
   });
 
-  describe(EventDateHandler.processTimedEventDates.name, () => {
-    it("should convert to UTC", () => {
-      const result = EventDateHandler.processTimedEventDates(
+  // ─── toTimedUTC ──────────────────────────────────────────────
+
+  describe("toTimedUTC", () => {
+    it("should handle datetime with embedded offset (Google Calendar)", () => {
+      const result = EventDateHandler.toTimedUTC(
         "2025-06-15T09:00:00+09:00",
         "2025-06-15T10:00:00+09:00",
         "Asia/Seoul",
       );
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-15T01:00:00.000Z");
+      expect(result.timezone).toBe("Asia/Seoul");
+    });
 
-      expect(result.startAt.toISOString()).toBe("2025-06-15T00:00:00.000Z");
-      expect(result.endAt.toISOString()).toBe("2025-06-15T01:00:00.000Z");
-      expect(result.zone).toBe("Asia/Seoul");
+    it("should use timezone for parsing bare datetime (Microsoft Graph)", () => {
+      const result = EventDateHandler.toTimedUTC(
+        "2025-06-15T09:00:00",
+        "2025-06-15T10:00:00",
+        "Asia/Seoul",
+      );
+      // Seoul is UTC+9 → 09:00 Seoul = 00:00 UTC
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-15T01:00:00.000Z");
+      expect(result.timezone).toBe("Asia/Seoul");
+    });
+
+    it("should handle UTC string (Calendly)", () => {
+      const result = EventDateHandler.toTimedUTC(
+        "2025-06-15T00:00:00Z",
+        "2025-06-15T01:00:00Z",
+        "UTC",
+      );
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-15T01:00:00.000Z");
+    });
+
+    it("should handle bare datetime with US timezone (DST)", () => {
+      const result = EventDateHandler.toTimedUTC(
+        "2025-06-15T09:00:00",
+        "2025-06-15T10:00:00",
+        "America/New_York",
+      );
+      // EDT is UTC-4 in June → 09:00 ET = 13:00 UTC
+      expect(result.start.toISOString()).toBe("2025-06-15T13:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-15T14:00:00.000Z");
+    });
+
+    it("should handle bare datetime with US timezone (no DST)", () => {
+      const result = EventDateHandler.toTimedUTC(
+        "2025-01-15T09:00:00",
+        "2025-01-15T10:00:00",
+        "America/New_York",
+      );
+      // EST is UTC-5 in January → 09:00 ET = 14:00 UTC
+      expect(result.start.toISOString()).toBe("2025-01-15T14:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-01-15T15:00:00.000Z");
+    });
+
+    it("should use embedded offset when it differs from timezone param", () => {
+      const result = EventDateHandler.toTimedUTC(
+        "2025-06-15T09:00:00+09:00",
+        "2025-06-15T10:00:00+09:00",
+        "America/New_York",
+      );
+      // Embedded +09:00 wins for parsing; "America/New_York" is metadata
+      expect(result.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result.end.toISOString()).toBe("2025-06-15T01:00:00.000Z");
+      expect(result.timezone).toBe("America/New_York");
+    });
+  });
+
+  // ─── normalize ───────────────────────────────────────────────
+
+  describe("normalize", () => {
+    it("should return null for undefined dates", () => {
+      const result = EventDateHandler.normalize({
+        start: undefined,
+        end: undefined,
+        timezone: UTC,
+      });
+      expect(result).toBeNull();
+    });
+
+    it("should return null when only start is undefined", () => {
+      const result = EventDateHandler.normalize({
+        start: undefined,
+        end: "2025-06-15",
+        timezone: UTC,
+      });
+      expect(result).toBeNull();
+    });
+
+    it("should return null when only end is undefined", () => {
+      const result = EventDateHandler.normalize({
+        start: "2025-06-15",
+        end: undefined,
+        timezone: UTC,
+      });
+      expect(result).toBeNull();
+    });
+
+    it("should dispatch to toAllDayUTC when isAllDay is true", () => {
+      const result = EventDateHandler.normalize({
+        start: "2025-06-15",
+        end: "2025-06-16",
+        timezone: "Asia/Seoul",
+        isAllDay: true,
+      });
+      expect(result).not.toBeNull();
+      expect(result!.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result!.end.toISOString()).toBe("2025-06-16T00:00:00.000Z");
+      expect(result!.timezone).toBe(UTC);
+    });
+
+    it("should dispatch to toTimedUTC by default", () => {
+      const result = EventDateHandler.normalize({
+        start: "2025-06-15T09:00:00+09:00",
+        end: "2025-06-15T10:00:00+09:00",
+        timezone: "Asia/Seoul",
+      });
+      expect(result).not.toBeNull();
+      expect(result!.start.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+      expect(result!.end.toISOString()).toBe("2025-06-15T01:00:00.000Z");
+      expect(result!.timezone).toBe("Asia/Seoul");
     });
   });
 });

@@ -11,4 +11,5 @@ export default defineConfig({
   sourcemap: true,
   external: ["dayjs"],
   treeshake: true,
+  splitting: false,
 });
