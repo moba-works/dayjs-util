@@ -339,7 +339,8 @@ describe(DayjsUtil.name, () => {
     it("should return false if two dates are in different days (unit: day)", () => {
       const d1 = DayjsUtil.tz("2025-06-15T09:00:00+09:00", "Asia/Seoul");
       const d2 = DayjsUtil.tz("2025-06-16T00:00:00+09:00", "Asia/Seoul");
-      expect(DayjsUtil.isSame(d1, d2, "day")).toBe(false);
+      // In KST these are different days; must pass timezone for correct comparison
+      expect(DayjsUtil.isSame(d1, d2, "day", "Asia/Seoul")).toBe(false);
     });
   });
 
@@ -569,6 +570,689 @@ describe(DayjsUtil.name, () => {
       expect(result).toBeInstanceOf(Date);
       // Invalid Date has NaN time
       expect(isNaN(result.getTime())).toBe(true);
+    });
+  });
+
+  // ─── isBefore / isAfter ─────────────────────────────────────────
+
+  describe(DayjsUtil.isBefore.name, () => {
+    it("should return true when date1 is before date2", () => {
+      expect(
+        DayjsUtil.isBefore(
+          "2025-06-15T08:00:00+09:00",
+          "2025-06-15T09:00:00+09:00",
+        ),
+      ).toBe(true);
+    });
+
+    it("should return false when date1 is after date2", () => {
+      expect(
+        DayjsUtil.isBefore(
+          "2025-06-15T10:00:00+09:00",
+          "2025-06-15T09:00:00+09:00",
+        ),
+      ).toBe(false);
+    });
+
+    it("should return false when dates are equal", () => {
+      expect(
+        DayjsUtil.isBefore(
+          "2025-06-15T09:00:00+09:00",
+          "2025-06-15T09:00:00+09:00",
+        ),
+      ).toBe(false);
+    });
+
+    it("should compare at day granularity", () => {
+      expect(
+        DayjsUtil.isBefore(
+          "2025-06-14T23:59:59Z",
+          "2025-06-15T00:00:00Z",
+          "day",
+        ),
+      ).toBe(true);
+      expect(
+        DayjsUtil.isBefore(
+          "2025-06-15T01:00:00Z",
+          "2025-06-15T23:00:00Z",
+          "day",
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe(DayjsUtil.isAfter.name, () => {
+    it("should return true when date1 is after date2", () => {
+      expect(
+        DayjsUtil.isAfter(
+          "2025-06-15T10:00:00+09:00",
+          "2025-06-15T09:00:00+09:00",
+        ),
+      ).toBe(true);
+    });
+
+    it("should return false when date1 is before date2", () => {
+      expect(
+        DayjsUtil.isAfter(
+          "2025-06-15T08:00:00+09:00",
+          "2025-06-15T09:00:00+09:00",
+        ),
+      ).toBe(false);
+    });
+
+    it("should compare at month granularity", () => {
+      expect(
+        DayjsUtil.isAfter(
+          "2025-07-01T00:00:00Z",
+          "2025-06-30T23:59:59Z",
+          "month",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  // ─── formatString ────────────────────────────────────────────────
+
+  describe(DayjsUtil.formatString.name, () => {
+    it("should format with custom template in UTC", () => {
+      const result = DayjsUtil.formatString(
+        "2025-06-15T00:00:00Z",
+        "YYYY/MM/DD HH:mm",
+      );
+      expect(result).toBe("2025/06/15 00:00");
+    });
+
+    it("should format in specified timezone", () => {
+      const result = DayjsUtil.formatString(
+        "2025-06-15T00:00:00Z",
+        "YYYY-MM-DD HH:mm",
+        "Asia/Seoul",
+      );
+      expect(result).toBe("2025-06-15 09:00");
+    });
+
+    it("should handle time-only format", () => {
+      const result = DayjsUtil.formatString("2025-06-15T15:30:45Z", "hh:mm A");
+      expect(result).toBe("03:30 PM");
+    });
+  });
+
+  // ─── startOf / endOf ────────────────────────────────────────────
+
+  describe(DayjsUtil.startOf.name, () => {
+    it("should return start of day in UTC", () => {
+      const result = DayjsUtil.startOf("2025-06-15T14:30:00Z", "day");
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 00:00:00");
+    });
+
+    it("should return start of day in specified timezone", () => {
+      // 2025-06-15 02:00 UTC = 2025-06-15 11:00 KST
+      const result = DayjsUtil.startOf(
+        "2025-06-15T02:00:00Z",
+        "day",
+        "Asia/Seoul",
+      );
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 00:00:00");
+    });
+
+    it("should return start of month", () => {
+      const result = DayjsUtil.startOf("2025-06-15T14:30:00Z", "month");
+      expect(result.format("YYYY-MM-DD")).toBe("2025-06-01");
+    });
+
+    it("should handle timezone where date differs from UTC", () => {
+      // 2025-06-14T20:00 UTC = 2025-06-15T05:00 KST
+      const result = DayjsUtil.startOf(
+        "2025-06-14T20:00:00Z",
+        "day",
+        "Asia/Seoul",
+      );
+      // In KST, this is June 15 — startOf('day') should give June 15 00:00 KST
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 00:00:00");
+    });
+
+    it("should handle DST spring-forward boundary", () => {
+      // US spring forward March 9, 2025: 2:00 AM → 3:00 AM EDT
+      const result = DayjsUtil.startOf(
+        "2025-03-09T12:00:00-04:00",
+        "day",
+        "America/New_York",
+      );
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-03-09 00:00:00");
+    });
+
+    it("should handle DST fall-back boundary", () => {
+      // US fall back November 2, 2025: 2:00 AM → 1:00 AM EST
+      const result = DayjsUtil.startOf(
+        "2025-11-02T12:00:00-05:00",
+        "day",
+        "America/New_York",
+      );
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-11-02 00:00:00");
+    });
+  });
+
+  describe(DayjsUtil.endOf.name, () => {
+    it("should return end of day in UTC", () => {
+      const result = DayjsUtil.endOf("2025-06-15T14:30:00Z", "day");
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 23:59:59");
+    });
+
+    it("should return end of month", () => {
+      const result = DayjsUtil.endOf("2025-06-15T14:30:00Z", "month");
+      expect(result.format("YYYY-MM-DD")).toBe("2025-06-30");
+    });
+
+    it("should return end of day in timezone", () => {
+      const result = DayjsUtil.endOf(
+        "2025-06-15T00:00:00Z",
+        "day",
+        "Asia/Seoul",
+      );
+      // In KST, this is June 15 09:00 — endOf('day') gives June 15 23:59:59 KST
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-15 23:59:59");
+    });
+
+    it("should handle DST spring-forward boundary", () => {
+      const result = DayjsUtil.endOf(
+        "2025-03-09T12:00:00-04:00",
+        "day",
+        "America/New_York",
+      );
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-03-09 23:59:59");
+    });
+  });
+
+  // ─── add / subtract ────────────────────────────────────────────
+
+  describe(DayjsUtil.add.name, () => {
+    it("should add days", () => {
+      const result = DayjsUtil.add("2025-06-15T09:00:00Z", 3, "day");
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-18 09:00:00");
+    });
+
+    it("should add hours", () => {
+      const result = DayjsUtil.add("2025-06-15T09:00:00Z", 2, "hour");
+      expect(result.format("HH:mm")).toBe("11:00");
+    });
+
+    it("should add months and handle month-end rollover", () => {
+      const result = DayjsUtil.add("2025-01-31T12:00:00Z", 1, "month");
+      // Jan 31 + 1 month = Feb 28 (2025 is not a leap year)
+      expect(result.format("YYYY-MM-DD")).toBe("2025-02-28");
+    });
+
+    it("should preserve wall-clock time across DST in timezone", () => {
+      // US spring forward: March 9, 2025 — clocks skip 2:00 AM → 3:00 AM
+      const result = DayjsUtil.add(
+        "2025-03-08T10:00:00-05:00", // 10 AM EST
+        1,
+        "day",
+        "America/New_York",
+      );
+      // Should be 10 AM EDT the next day, not 11 AM
+      expect(result.format("HH:mm")).toBe("10:00");
+    });
+  });
+
+  describe(DayjsUtil.subtract.name, () => {
+    it("should subtract days", () => {
+      const result = DayjsUtil.subtract("2025-06-15T09:00:00Z", 5, "day");
+      expect(result.format("YYYY-MM-DD")).toBe("2025-06-10");
+    });
+
+    it("should subtract months", () => {
+      const result = DayjsUtil.subtract("2025-03-31T12:00:00Z", 1, "month");
+      // March 31 - 1 month = Feb 28
+      expect(result.format("YYYY-MM-DD")).toBe("2025-02-28");
+    });
+
+    it("should subtract with timezone", () => {
+      const result = DayjsUtil.subtract(
+        "2025-06-15T00:00:00Z",
+        1,
+        "day",
+        "Asia/Seoul",
+      );
+      // UTC midnight = KST 09:00 June 15. Subtract 1 day = KST 09:00 June 14
+      expect(result.format("YYYY-MM-DD HH:mm")).toBe("2025-06-14 09:00");
+    });
+  });
+
+  // ─── now ────────────────────────────────────────────────────────
+
+  describe(DayjsUtil.now.name, () => {
+    it("should return a valid Dayjs object", () => {
+      const result = DayjsUtil.now();
+      expect(result.isValid()).toBe(true);
+    });
+
+    it("should return current time close to Date.now()", () => {
+      const before = Date.now();
+      const result = DayjsUtil.now();
+      const after = Date.now();
+      expect(result.valueOf()).toBeGreaterThanOrEqual(before);
+      expect(result.valueOf()).toBeLessThanOrEqual(after);
+    });
+
+    it("should respect timezone", () => {
+      const utcNow = DayjsUtil.now();
+      const seoulNow = DayjsUtil.now("Asia/Seoul");
+      // Same instant, different display — offset should differ by 9 hours
+      expect(seoulNow.utcOffset()).toBe(9 * 60);
+      expect(utcNow.utcOffset()).toBe(0);
+    });
+  });
+
+  // ─── isSameOrBefore / isSameOrAfter ─────────────────────────────
+
+  describe(DayjsUtil.isSameOrBefore.name, () => {
+    it("should return true when date1 is before date2", () => {
+      expect(
+        DayjsUtil.isSameOrBefore(
+          "2025-06-14T00:00:00Z",
+          "2025-06-15T00:00:00Z",
+        ),
+      ).toBe(true);
+    });
+
+    it("should return true when dates are equal", () => {
+      expect(
+        DayjsUtil.isSameOrBefore(
+          "2025-06-15T00:00:00Z",
+          "2025-06-15T00:00:00Z",
+        ),
+      ).toBe(true);
+    });
+
+    it("should return false when date1 is after date2", () => {
+      expect(
+        DayjsUtil.isSameOrBefore(
+          "2025-06-16T00:00:00Z",
+          "2025-06-15T00:00:00Z",
+        ),
+      ).toBe(false);
+    });
+
+    it("should compare at day granularity", () => {
+      expect(
+        DayjsUtil.isSameOrBefore(
+          "2025-06-15T23:59:59Z",
+          "2025-06-15T00:00:00Z",
+          "day",
+        ),
+      ).toBe(true);
+    });
+
+    it("should respect timezone for day comparison", () => {
+      // 2025-06-14T20:00 UTC = 2025-06-15T05:00 KST
+      // In KST, both are June 15 → same day → isSameOrBefore is true
+      expect(
+        DayjsUtil.isSameOrBefore(
+          "2025-06-14T20:00:00Z",
+          "2025-06-15T00:00:00Z",
+          "day",
+          "Asia/Seoul",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe(DayjsUtil.isSameOrAfter.name, () => {
+    it("should return true when date1 is after date2", () => {
+      expect(
+        DayjsUtil.isSameOrAfter("2025-06-16T00:00:00Z", "2025-06-15T00:00:00Z"),
+      ).toBe(true);
+    });
+
+    it("should return true when dates are equal", () => {
+      expect(
+        DayjsUtil.isSameOrAfter("2025-06-15T00:00:00Z", "2025-06-15T00:00:00Z"),
+      ).toBe(true);
+    });
+
+    it("should return false when date1 is before date2", () => {
+      expect(
+        DayjsUtil.isSameOrAfter("2025-06-14T00:00:00Z", "2025-06-15T00:00:00Z"),
+      ).toBe(false);
+    });
+
+    it("should respect timezone for day comparison", () => {
+      // 2025-06-15T16:00 UTC = 2025-06-16T01:00 KST
+      // In KST, date1 is June 16 which is after June 15 → true
+      expect(
+        DayjsUtil.isSameOrAfter(
+          "2025-06-15T16:00:00Z",
+          "2025-06-15T00:00:00Z",
+          "day",
+          "Asia/Seoul",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  // ─── isBetween ──────────────────────────────────────────────────
+
+  describe(DayjsUtil.isBetween.name, () => {
+    const start = "2025-06-10T00:00:00Z";
+    const end = "2025-06-20T00:00:00Z";
+
+    it("should return true for date within range (exclusive by default)", () => {
+      expect(DayjsUtil.isBetween("2025-06-15T00:00:00Z", start, end)).toBe(
+        true,
+      );
+    });
+
+    it("should return false for date outside range", () => {
+      expect(DayjsUtil.isBetween("2025-06-25T00:00:00Z", start, end)).toBe(
+        false,
+      );
+    });
+
+    it("should exclude boundaries with '()' inclusivity", () => {
+      expect(DayjsUtil.isBetween(start, start, end, null, "()")).toBe(false);
+      expect(DayjsUtil.isBetween(end, start, end, null, "()")).toBe(false);
+    });
+
+    it("should include boundaries with '[]' inclusivity", () => {
+      expect(DayjsUtil.isBetween(start, start, end, null, "[]")).toBe(true);
+      expect(DayjsUtil.isBetween(end, start, end, null, "[]")).toBe(true);
+    });
+
+    it("should support mixed inclusivity '[)'", () => {
+      expect(DayjsUtil.isBetween(start, start, end, null, "[)")).toBe(true);
+      expect(DayjsUtil.isBetween(end, start, end, null, "[)")).toBe(false);
+    });
+
+    it("should compare at day granularity", () => {
+      expect(
+        DayjsUtil.isBetween(
+          "2025-06-15T23:59:59Z",
+          "2025-06-15T00:00:00Z",
+          "2025-06-20T00:00:00Z",
+          "day",
+          "[]",
+        ),
+      ).toBe(true);
+    });
+
+    it("should respect timezone for day-level range check", () => {
+      // 2025-06-14T20:00 UTC = 2025-06-15T05:00 KST
+      // In KST, this is June 15 — between June 10 and June 20
+      expect(
+        DayjsUtil.isBetween(
+          "2025-06-14T20:00:00Z",
+          "2025-06-15T00:00:00Z",
+          "2025-06-20T00:00:00Z",
+          "day",
+          "[]",
+          "Asia/Seoul",
+        ),
+      ).toBe(true);
+    });
+  });
+
+  // ─── startOfDate / endOfDate ────────────────────────────────────
+
+  describe(DayjsUtil.startOfDate.name, () => {
+    it("should return a JS Date at start of day", () => {
+      const result = DayjsUtil.startOfDate("2025-06-15T14:30:00Z", "day");
+      expect(result).toBeInstanceOf(Date);
+      expect(result.toISOString()).toBe("2025-06-15T00:00:00.000Z");
+    });
+
+    it("should return start of month as Date", () => {
+      const result = DayjsUtil.startOfDate("2025-06-15T14:30:00Z", "month");
+      expect(result.toISOString()).toBe("2025-06-01T00:00:00.000Z");
+    });
+  });
+
+  describe(DayjsUtil.endOfDate.name, () => {
+    it("should return a JS Date at end of day", () => {
+      const result = DayjsUtil.endOfDate("2025-06-15T14:30:00Z", "day");
+      expect(result).toBeInstanceOf(Date);
+      expect(result.toISOString()).toBe("2025-06-15T23:59:59.999Z");
+    });
+  });
+
+  // ─── toUnixSeconds / toUnixMilliseconds ─────────────────────────
+
+  describe(DayjsUtil.toUnixSeconds.name, () => {
+    it("should return Unix timestamp in seconds", () => {
+      const result = DayjsUtil.toUnixSeconds("2025-01-01T00:00:00Z");
+      expect(result).toBe(1735689600);
+    });
+
+    it("should return 0 for epoch", () => {
+      expect(DayjsUtil.toUnixSeconds("1970-01-01T00:00:00Z")).toBe(0);
+    });
+  });
+
+  describe(DayjsUtil.toUnixMilliseconds.name, () => {
+    it("should return Unix timestamp in milliseconds", () => {
+      const result = DayjsUtil.toUnixMilliseconds("2025-01-01T00:00:00Z");
+      expect(result).toBe(1735689600000);
+    });
+
+    it("should match Date.getTime()", () => {
+      const date = new Date("2025-06-15T09:00:00Z");
+      expect(DayjsUtil.toUnixMilliseconds(date)).toBe(date.getTime());
+    });
+  });
+
+  // ─── copyTime ───────────────────────────────────────────────────
+
+  describe(DayjsUtil.copyTime.name, () => {
+    it("should copy time from source to target date", () => {
+      const result = DayjsUtil.copyTime(
+        "2025-06-15T14:30:45Z", // source time: 14:30:45
+        "2025-06-20T00:00:00Z", // target date: June 20
+      );
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-20 14:30:45");
+    });
+
+    it("should preserve target date while changing time", () => {
+      const result = DayjsUtil.copyTime(
+        "2025-01-01T08:15:00Z",
+        "2025-12-25T23:59:59Z",
+      );
+      expect(result.format("YYYY-MM-DD")).toBe("2025-12-25");
+      expect(result.format("HH:mm:ss")).toBe("08:15:00");
+    });
+
+    it("should work with timezone (UTC → KST)", () => {
+      const result = DayjsUtil.copyTime(
+        "2025-06-15T00:00:00Z", // UTC midnight = KST 09:00
+        "2025-06-20T12:00:00Z", // UTC noon = KST 21:00
+        "Asia/Seoul",
+      );
+      // In KST: source is 09:00, target date is June 20
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-20 09:00:00");
+    });
+
+    it("should work with timezone (KST → UTC direction)", () => {
+      const result = DayjsUtil.copyTime(
+        "2025-06-15T15:00:00Z", // UTC 15:00 = KST 00:00 (midnight)
+        "2025-06-20T03:00:00Z", // UTC 03:00 = KST 12:00
+        "Asia/Seoul",
+      );
+      // In KST: source is 00:00, target date is June 20
+      expect(result.format("YYYY-MM-DD HH:mm:ss")).toBe("2025-06-20 00:00:00");
+    });
+
+    it("should copy milliseconds correctly", () => {
+      const result = DayjsUtil.copyTime(
+        "2025-06-15T14:30:45.123Z", // source with milliseconds
+        "2025-06-20T00:00:00Z",
+      );
+      expect(result.format("YYYY-MM-DD HH:mm:ss.SSS")).toBe(
+        "2025-06-20 14:30:45.123",
+      );
+    });
+  });
+
+  // ─── isMidnight ─────────────────────────────────────────────────
+
+  describe(DayjsUtil.isMidnight.name, () => {
+    it("should return true for midnight UTC", () => {
+      expect(DayjsUtil.isMidnight("2025-06-15T00:00:00Z")).toBe(true);
+    });
+
+    it("should return false for non-midnight", () => {
+      expect(DayjsUtil.isMidnight("2025-06-15T00:00:01Z")).toBe(false);
+    });
+
+    it("should check midnight in specified timezone", () => {
+      // 2025-06-14T15:00:00Z = 2025-06-15T00:00:00 KST (midnight in Seoul)
+      expect(DayjsUtil.isMidnight("2025-06-14T15:00:00Z", "Asia/Seoul")).toBe(
+        true,
+      );
+    });
+
+    it("should return false for midnight UTC when checking different timezone", () => {
+      // UTC midnight is 09:00 in Seoul — not midnight
+      expect(DayjsUtil.isMidnight("2025-06-15T00:00:00Z", "Asia/Seoul")).toBe(
+        false,
+      );
+    });
+  });
+
+  // ─── formatDurationString ───────────────────────────────────────
+
+  describe(DayjsUtil.formatDurationString.name, () => {
+    it("should format hours and minutes (short)", () => {
+      const ms = (2 * 60 + 30) * 60 * 1000; // 2h 30min
+      expect(DayjsUtil.formatDurationString(ms)).toBe("2h 30min");
+    });
+
+    it("should format hours and minutes (long)", () => {
+      const ms = (2 * 60 + 30) * 60 * 1000;
+      expect(DayjsUtil.formatDurationString(ms, { short: false })).toBe(
+        "2 hours 30 minutes",
+      );
+    });
+
+    it("should handle hours only", () => {
+      const ms = 3 * 60 * 60 * 1000;
+      expect(DayjsUtil.formatDurationString(ms)).toBe("3h");
+    });
+
+    it("should handle minutes only", () => {
+      const ms = 45 * 60 * 1000;
+      expect(DayjsUtil.formatDurationString(ms)).toBe("45min");
+    });
+
+    it("should handle zero duration", () => {
+      expect(DayjsUtil.formatDurationString(0)).toBe("0min");
+      expect(DayjsUtil.formatDurationString(0, { short: false })).toBe(
+        "0 minutes",
+      );
+    });
+
+    it("should handle singular forms (long)", () => {
+      const oneHour = 60 * 60 * 1000;
+      const oneMin = 60 * 1000;
+      expect(DayjsUtil.formatDurationString(oneHour, { short: false })).toBe(
+        "1 hour",
+      );
+      expect(DayjsUtil.formatDurationString(oneMin, { short: false })).toBe(
+        "1 minute",
+      );
+    });
+
+    it("should handle large durations (>24h)", () => {
+      const ms = 26 * 60 * 60 * 1000 + 15 * 60 * 1000; // 26h 15min
+      expect(DayjsUtil.formatDurationString(ms)).toBe("26h 15min");
+    });
+
+    it("should handle sub-minute durations as zero", () => {
+      // 30 seconds — not enough for a full minute
+      expect(DayjsUtil.formatDurationString(30_000)).toBe("0min");
+    });
+
+    it("should treat negative durations as absolute value", () => {
+      expect(DayjsUtil.formatDurationString(-60_000)).toBe("1min");
+      expect(DayjsUtil.formatDurationString(-3_600_000)).toBe("1h");
+    });
+  });
+
+  // ─── dayOfWeekString ────────────────────────────────────────────
+
+  describe(DayjsUtil.dayOfWeekString.name, () => {
+    it("should return correct RRULE day code", () => {
+      // June 15, 2025 is a Sunday
+      expect(DayjsUtil.dayOfWeekString("2025-06-15T00:00:00Z")).toBe("SU");
+      // June 16, 2025 is a Monday
+      expect(DayjsUtil.dayOfWeekString("2025-06-16T00:00:00Z")).toBe("MO");
+      // June 17, 2025 is a Tuesday
+      expect(DayjsUtil.dayOfWeekString("2025-06-17T00:00:00Z")).toBe("TU");
+      // June 18, 2025 is a Wednesday
+      expect(DayjsUtil.dayOfWeekString("2025-06-18T00:00:00Z")).toBe("WE");
+      // June 19, 2025 is a Thursday
+      expect(DayjsUtil.dayOfWeekString("2025-06-19T00:00:00Z")).toBe("TH");
+      // June 20, 2025 is a Friday
+      expect(DayjsUtil.dayOfWeekString("2025-06-20T00:00:00Z")).toBe("FR");
+      // June 21, 2025 is a Saturday
+      expect(DayjsUtil.dayOfWeekString("2025-06-21T00:00:00Z")).toBe("SA");
+    });
+
+    it("should respect timezone when day differs", () => {
+      // 2025-06-14T20:00 UTC = 2025-06-15T05:00 KST
+      // June 14 is Saturday in UTC, June 15 is Sunday in KST
+      expect(DayjsUtil.dayOfWeekString("2025-06-14T20:00:00Z")).toBe("SA");
+      expect(
+        DayjsUtil.dayOfWeekString("2025-06-14T20:00:00Z", "Asia/Seoul"),
+      ).toBe("SU");
+    });
+
+    it("should throw RangeError for invalid date input", () => {
+      expect(() => DayjsUtil.dayOfWeekString("not-a-date")).toThrow(RangeError);
+    });
+  });
+
+  // ─── remainingDays ──────────────────────────────────────────────
+
+  describe(DayjsUtil.remainingDays.name, () => {
+    it("should return exact day count for whole days", () => {
+      expect(
+        DayjsUtil.remainingDays("2025-06-15T00:00:00Z", "2025-06-20T00:00:00Z"),
+      ).toBe(5);
+    });
+
+    it("should round up partial days", () => {
+      // 5 days + 1 hour → should be 6
+      expect(
+        DayjsUtil.remainingDays("2025-06-15T00:00:00Z", "2025-06-20T01:00:00Z"),
+      ).toBe(6);
+    });
+
+    it("should return 0 for same instant", () => {
+      expect(
+        DayjsUtil.remainingDays("2025-06-15T00:00:00Z", "2025-06-15T00:00:00Z"),
+      ).toBe(0);
+    });
+
+    it("should return negative for past dates", () => {
+      expect(
+        DayjsUtil.remainingDays("2025-06-20T00:00:00Z", "2025-06-15T00:00:00Z"),
+      ).toBe(-5);
+    });
+
+    it("should return -1 for sub-day negative intervals", () => {
+      // 1 hour in the past → should be -1, not 0
+      expect(
+        DayjsUtil.remainingDays("2025-06-15T01:00:00Z", "2025-06-15T00:00:00Z"),
+      ).toBe(-1);
+    });
+
+    it("should round up even for tiny remainders", () => {
+      // 1 millisecond past midnight → should be 1 day remaining
+      expect(
+        DayjsUtil.remainingDays(
+          "2025-06-15T00:00:00Z",
+          "2025-06-15T00:00:00.001Z",
+        ),
+      ).toBe(1);
     });
   });
 });

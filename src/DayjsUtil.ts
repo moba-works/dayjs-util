@@ -1,9 +1,12 @@
-import dayjs, { Dayjs, OpUnitType } from "dayjs";
+import dayjs, { Dayjs, ManipulateType, OpUnitType } from "dayjs";
+import duration from "dayjs/plugin/duration";
+import isBetween from "dayjs/plugin/isBetween";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { FORMAT_PATTERNS, UTC } from "./constants";
-import type { DateFormat } from "./constants";
+import { FORMAT_PATTERNS, RRULE_DAYS, UTC } from "./constants";
+import type { DateFormat, RRuleDay } from "./constants";
 import type { DateInput, TimezoneString } from "./types";
 
 /**
@@ -13,6 +16,9 @@ import type { DateInput, TimezoneString } from "./types";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
+dayjs.extend(isBetween);
+dayjs.extend(duration);
 
 /**
  * Static utility class for date and time operations.
@@ -239,13 +245,16 @@ export class DayjsUtil {
    * @param date1 - First date
    * @param date2 - Second date
    * @param unit - Granularity of comparison (default: millisecond)
+   * @param timezone - Timezone for comparison (null = UTC). Matters when unit is 'day' or larger.
    */
   static isSame(
     date1?: DateInput,
     date2?: DateInput,
     unit?: OpUnitType,
+    timezone?: TimezoneString,
   ): boolean {
-    return dayjs(date1).isSame(date2, unit);
+    const tz = timezone ?? UTC;
+    return dayjs(date1).tz(tz).isSame(dayjs(date2).tz(tz), unit);
   }
 
   /**
@@ -253,10 +262,17 @@ export class DayjsUtil {
    * @param date1 - First date
    * @param date2 - Second date
    * @param unit - Unit for difference (default: millisecond)
+   * @param timezone - Timezone for the calculation (null = UTC). Matters when unit is 'day' or larger.
    * @returns Difference in the specified unit
    */
-  static diff(date1?: DateInput, date2?: DateInput, unit?: OpUnitType): number {
-    return dayjs(date1).diff(date2, unit);
+  static diff(
+    date1?: DateInput,
+    date2?: DateInput,
+    unit?: OpUnitType,
+    timezone?: TimezoneString,
+  ): number {
+    const tz = timezone ?? UTC;
+    return dayjs(date1).tz(tz).diff(dayjs(date2).tz(tz), unit);
   }
 
   // ─── Validation ──────────────────────────────────────────────────
@@ -271,6 +287,463 @@ export class DayjsUtil {
     const pattern = FORMAT_PATTERNS[format];
     if (!pattern) return false;
     return pattern.test(value);
+  }
+
+  // ─── Comparison (extended) ──────────────────────────────────────
+
+  /**
+   * Check if date1 is before date2.
+   * @param date1 - First date
+   * @param date2 - Second date
+   * @param unit - Granularity of comparison (default: millisecond)
+   * @param timezone - Timezone for comparison (null = UTC). Matters when unit is 'day' or larger.
+   *
+   * @example
+   * DayjsUtil.isBefore("2025-06-14", "2025-06-15") // true
+   * DayjsUtil.isBefore("2025-06-15T23:00", "2025-06-15T01:00", "day") // false (same day)
+   */
+  static isBefore(
+    date1?: DateInput,
+    date2?: DateInput,
+    unit?: OpUnitType,
+    timezone?: TimezoneString,
+  ): boolean {
+    const tz = timezone ?? UTC;
+    return dayjs(date1).tz(tz).isBefore(dayjs(date2).tz(tz), unit);
+  }
+
+  /**
+   * Check if date1 is after date2.
+   * @param date1 - First date
+   * @param date2 - Second date
+   * @param unit - Granularity of comparison (default: millisecond)
+   * @param timezone - Timezone for comparison (null = UTC). Matters when unit is 'day' or larger.
+   */
+  static isAfter(
+    date1?: DateInput,
+    date2?: DateInput,
+    unit?: OpUnitType,
+    timezone?: TimezoneString,
+  ): boolean {
+    const tz = timezone ?? UTC;
+    return dayjs(date1).tz(tz).isAfter(dayjs(date2).tz(tz), unit);
+  }
+
+  // ─── General Formatting ─────────────────────────────────────────
+
+  /**
+   * Format a date with a custom template string in the specified timezone.
+   * @param date - Date to format (current time if omitted)
+   * @param template - dayjs format template (e.g., "YYYY-MM-DD HH:mm")
+   * @param timezone - Timezone for formatting (null = UTC)
+   * @returns Formatted string
+   *
+   * @example
+   * DayjsUtil.formatString("2025-06-15T00:00:00Z", "YYYY/MM/DD") // "2025/06/15"
+   * DayjsUtil.formatString("2025-06-15T00:00:00Z", "HH:mm", "Asia/Seoul") // "09:00"
+   */
+  static formatString(
+    date: DateInput | undefined,
+    template: string,
+    timezone?: TimezoneString,
+  ): string {
+    const tz = timezone ?? UTC;
+    // NOTE: Uses tz() (convert TO timezone), not tzParse() (parse AS timezone).
+    // For offset-less strings, use DayjsUtil.tzParse() first if needed. This is by design.
+    return dayjs(date).tz(tz).format(template);
+  }
+
+  // ─── Boundary Methods ───────────────────────────────────────────
+
+  /**
+   * Get the start of a time unit in the specified timezone.
+   *
+   * Timezone is applied BEFORE the startOf calculation — this prevents
+   * the common bug of computing midnight in UTC instead of the user's timezone.
+   *
+   * @param date - Input date
+   * @param unit - Unit to compute start of (day, week, month, year, etc.)
+   * @param timezone - Timezone for the boundary (null = UTC)
+   * @returns Dayjs at the start of the unit in the specified timezone
+   *
+   * @example
+   * // Get midnight in Seoul (not UTC midnight!)
+   * DayjsUtil.startOf("2025-06-15T02:00:00Z", "day", "Asia/Seoul")
+   * // → 2025-06-15 00:00:00 KST (= 2025-06-14T15:00:00Z)
+   */
+  static startOf(
+    date: DateInput,
+    unit: OpUnitType,
+    timezone?: TimezoneString,
+  ): Dayjs {
+    const tz = timezone ?? UTC;
+    return dayjs(date).tz(tz).startOf(unit);
+  }
+
+  /**
+   * Get the end of a time unit in the specified timezone.
+   *
+   * Timezone is applied BEFORE the endOf calculation.
+   *
+   * @param date - Input date
+   * @param unit - Unit to compute end of (day, week, month, year, etc.)
+   * @param timezone - Timezone for the boundary (null = UTC)
+   * @returns Dayjs at the end of the unit in the specified timezone
+   */
+  static endOf(
+    date: DateInput,
+    unit: OpUnitType,
+    timezone?: TimezoneString,
+  ): Dayjs {
+    const tz = timezone ?? UTC;
+    return dayjs(date).tz(tz).endOf(unit);
+  }
+
+  // ─── Arithmetic ─────────────────────────────────────────────────
+
+  /**
+   * Add time to a date, with operations performed in the specified timezone.
+   *
+   * DST-safe: adding 1 day across a DST boundary yields the same wall-clock
+   * time the next day, not exactly 24 hours later.
+   *
+   * @param date - Base date
+   * @param value - Amount to add
+   * @param unit - Unit to add (day, month, year, hour, minute, etc.)
+   * @param timezone - Timezone for the operation (null = UTC)
+   * @returns New Dayjs with time added
+   *
+   * @example
+   * DayjsUtil.add("2025-06-15T09:00:00Z", 3, "day") // June 18, 09:00 UTC
+   * DayjsUtil.add("2025-01-31T00:00:00Z", 1, "month") // Feb 28 (auto-clamp)
+   */
+  static add(
+    date: DateInput,
+    value: number,
+    unit: ManipulateType,
+    timezone?: TimezoneString,
+  ): Dayjs {
+    const tz = timezone ?? UTC;
+    return dayjs(date).tz(tz).add(value, unit);
+  }
+
+  /**
+   * Subtract time from a date, with operations performed in the specified timezone.
+   *
+   * DST-safe: same wall-clock time preservation as add().
+   *
+   * @param date - Base date
+   * @param value - Amount to subtract
+   * @param unit - Unit to subtract (day, month, year, hour, minute, etc.)
+   * @param timezone - Timezone for the operation (null = UTC)
+   * @returns New Dayjs with time subtracted
+   */
+  static subtract(
+    date: DateInput,
+    value: number,
+    unit: ManipulateType,
+    timezone?: TimezoneString,
+  ): Dayjs {
+    const tz = timezone ?? UTC;
+    return dayjs(date).tz(tz).subtract(value, unit);
+  }
+
+  // ─── Current Time ───────────────────────────────────────────────
+
+  /**
+   * Get the current moment in the specified timezone.
+   * @param timezone - Timezone (null = UTC)
+   * @returns Dayjs representing "now" in the specified timezone
+   */
+  static now(timezone?: TimezoneString): Dayjs {
+    const tz = timezone ?? UTC;
+    return dayjs().tz(tz);
+  }
+
+  // ─── Range Checks ───────────────────────────────────────────────
+
+  /**
+   * Check if date1 is the same as or before date2.
+   * @param date1 - First date
+   * @param date2 - Second date
+   * @param unit - Granularity of comparison (default: millisecond)
+   * @param timezone - Timezone for comparison (null = UTC)
+   */
+  static isSameOrBefore(
+    date1?: DateInput,
+    date2?: DateInput,
+    unit?: OpUnitType,
+    timezone?: TimezoneString,
+  ): boolean {
+    const tz = timezone ?? UTC;
+    return dayjs(date1).tz(tz).isSameOrBefore(dayjs(date2).tz(tz), unit);
+  }
+
+  /**
+   * Check if date1 is the same as or after date2.
+   * @param date1 - First date
+   * @param date2 - Second date
+   * @param unit - Granularity of comparison (default: millisecond)
+   * @param timezone - Timezone for comparison (null = UTC)
+   */
+  static isSameOrAfter(
+    date1?: DateInput,
+    date2?: DateInput,
+    unit?: OpUnitType,
+    timezone?: TimezoneString,
+  ): boolean {
+    const tz = timezone ?? UTC;
+    return dayjs(date1).tz(tz).isSameOrAfter(dayjs(date2).tz(tz), unit);
+  }
+
+  /**
+   * Check if a date falls between two other dates.
+   * @param date - Date to check
+   * @param start - Range start
+   * @param end - Range end
+   * @param unit - Granularity (null = millisecond)
+   * @param inclusivity - Bracket notation (default: "()" exclusive on both ends)
+   * @param timezone - Timezone for comparison (null = UTC)
+   *
+   * @example
+   * // Check if event falls within calendar view range (inclusive)
+   * DayjsUtil.isBetween("2025-06-15", "2025-06-01", "2025-06-30", "day", "[]") // true
+   *
+   * // To set inclusivity without specifying unit, pass null for unit:
+   * DayjsUtil.isBetween("2025-06-15", "2025-06-15", "2025-06-20", null, "[]") // true
+   * DayjsUtil.isBetween("2025-06-15", "2025-06-15", "2025-06-20") // false (default "()" excludes boundaries)
+   */
+  static isBetween(
+    date: DateInput,
+    start: DateInput,
+    end: DateInput,
+    unit?: OpUnitType | null,
+    inclusivity?: "()" | "[]" | "[)" | "(]",
+    timezone?: TimezoneString,
+  ): boolean {
+    const tz = timezone ?? UTC;
+    return dayjs(date)
+      .tz(tz)
+      .isBetween(dayjs(start).tz(tz), dayjs(end).tz(tz), unit, inclusivity);
+  }
+
+  // ─── Boundary Methods (Date return) ─────────────────────────────
+
+  /**
+   * Get the start of a time unit as a JS Date (UTC).
+   * @param date - Input date
+   * @param unit - Unit to compute start of
+   * @param timezone - Timezone for the boundary (null = UTC)
+   * @returns JavaScript Date at the start of the unit
+   */
+  static startOfDate(
+    date: DateInput,
+    unit: OpUnitType,
+    timezone?: TimezoneString,
+  ): Date {
+    return this.startOf(date, unit, timezone).toDate();
+  }
+
+  /**
+   * Get the end of a time unit as a JS Date (UTC).
+   * @param date - Input date
+   * @param unit - Unit to compute end of
+   * @param timezone - Timezone for the boundary (null = UTC)
+   * @returns JavaScript Date at the end of the unit
+   */
+  static endOfDate(
+    date: DateInput,
+    unit: OpUnitType,
+    timezone?: TimezoneString,
+  ): Date {
+    return this.endOf(date, unit, timezone).toDate();
+  }
+
+  // ─── Timestamps ─────────────────────────────────────────────────
+
+  /**
+   * Get Unix timestamp in seconds.
+   * @param date - Input date (current time if omitted)
+   * @returns Seconds since Unix epoch
+   */
+  static toUnixSeconds(date?: DateInput): number {
+    return dayjs(date).unix();
+  }
+
+  /**
+   * Get Unix timestamp in milliseconds.
+   * @param date - Input date (current time if omitted)
+   * @returns Milliseconds since Unix epoch
+   */
+  static toUnixMilliseconds(date?: DateInput): number {
+    return dayjs(date).valueOf();
+  }
+
+  // ─── Time Manipulation ──────────────────────────────────────────
+
+  /**
+   * Copy the time (hour, minute, second) from one date onto another date's
+   * calendar day, in the specified timezone.
+   *
+   * Use case: drag-and-drop event to a new day while keeping its time.
+   *
+   * @param sourceDate - Date to copy time FROM
+   * @param targetDate - Date to copy time ONTO (keeps its date)
+   * @param timezone - Timezone for the operation (null = UTC)
+   * @returns Dayjs with targetDate's date and sourceDate's time
+   *
+   * @example
+   * // Drag event from June 15 14:30 to June 20 (keep 14:30)
+   * DayjsUtil.copyTime("2025-06-15T14:30:00Z", "2025-06-20T00:00:00Z")
+   * // → 2025-06-20 14:30:00 UTC
+   */
+  static copyTime(
+    sourceDate: DateInput,
+    targetDate: DateInput,
+    timezone?: TimezoneString,
+  ): Dayjs {
+    const tz = timezone ?? UTC;
+    const source = dayjs(sourceDate).tz(tz);
+    const target = dayjs(targetDate).tz(tz);
+    return target
+      .hour(source.hour())
+      .minute(source.minute())
+      .second(source.second())
+      .millisecond(source.millisecond());
+  }
+
+  /**
+   * Check if a date represents midnight (00:00:00.000) in the specified timezone.
+   *
+   * Use case: all-day event detection.
+   *
+   * @param date - Date to check
+   * @param timezone - Timezone for the check (null = UTC)
+   * @returns true if the time is exactly midnight
+   *
+   * @example
+   * DayjsUtil.isMidnight("2025-06-15T00:00:00Z") // true
+   * DayjsUtil.isMidnight("2025-06-14T15:00:00Z", "Asia/Seoul") // true (midnight KST)
+   */
+  static isMidnight(date: DateInput, timezone?: TimezoneString): boolean {
+    const tz = timezone ?? UTC;
+    const d = dayjs(date).tz(tz);
+    return (
+      d.hour() === 0 &&
+      d.minute() === 0 &&
+      d.second() === 0 &&
+      d.millisecond() === 0
+    );
+  }
+
+  // ─── Duration Formatting ────────────────────────────────────────
+
+  /**
+   * Format a duration in milliseconds as a human-readable string.
+   *
+   * Negative values are treated as their absolute value — the sign is dropped.
+   * If you need to distinguish positive/negative durations, check the sign
+   * before calling this method.
+   *
+   * @param milliseconds - Duration in milliseconds (negative = absolute value)
+   * @param options - { short: true } for "2h 30min", false for "2 hours 30 minutes"
+   * @returns Formatted duration string (always positive)
+   *
+   * @example
+   * DayjsUtil.formatDurationString(9_000_000) // "2h 30min"
+   * DayjsUtil.formatDurationString(9_000_000, { short: false }) // "2 hours 30 minutes"
+   * DayjsUtil.formatDurationString(-3_600_000) // "1h" (sign dropped)
+   * DayjsUtil.formatDurationString(0) // "0min"
+   */
+  static formatDurationString(
+    milliseconds: number,
+    options?: { short?: boolean },
+  ): string {
+    const dur = dayjs.duration(Math.abs(milliseconds));
+    const totalHours = Math.floor(dur.asHours());
+    const minutes = dur.minutes();
+    const short = options?.short ?? true;
+
+    if (totalHours === 0 && minutes === 0) {
+      return short ? "0min" : "0 minutes";
+    }
+
+    const parts: string[] = [];
+
+    if (totalHours > 0) {
+      parts.push(
+        short
+          ? `${totalHours}h`
+          : `${totalHours} hour${totalHours !== 1 ? "s" : ""}`,
+      );
+    }
+
+    if (minutes > 0) {
+      parts.push(
+        short
+          ? `${minutes}min`
+          : `${minutes} minute${minutes !== 1 ? "s" : ""}`,
+      );
+    }
+
+    return parts.join(" ");
+  }
+
+  // ─── Calendar Domain ────────────────────────────────────────────
+
+  /**
+   * Get the RRULE day-of-week abbreviation for a date.
+   * @param date - Input date
+   * @param timezone - Timezone for day calculation (null = UTC)
+   * @returns Two-letter RRULE day code ("SU", "MO", "TU", "WE", "TH", "FR", "SA")
+   *
+   * @example
+   * DayjsUtil.dayOfWeekString("2025-06-16T00:00:00Z") // "MO" (Monday)
+   */
+  static dayOfWeekString(date: DateInput, timezone?: TimezoneString): RRuleDay {
+    const tz = timezone ?? UTC;
+    const d = dayjs(date).tz(tz);
+    if (!d.isValid()) {
+      throw new RangeError("Invalid date input for dayOfWeekString");
+    }
+    const day = RRULE_DAYS[d.day()];
+    if (!day) {
+      throw new RangeError("Invalid weekday index");
+    }
+    return day;
+  }
+
+  /**
+   * Calculate remaining whole days between two dates (rounds up partial days).
+   *
+   * DST-safe: uses calendar-day arithmetic instead of fixed ms/day.
+   * Use case: "Your trial expires in N days" — always rounds up so even
+   * 0.1 remaining days shows as 1.
+   *
+   * @param fromDate - Start date
+   * @param toDate - End date
+   * @param timezone - Timezone for day calculation (null = UTC)
+   * @returns Number of remaining days (ceiling away from zero), negative if toDate is in the past
+   *
+   * @example
+   * DayjsUtil.remainingDays("2025-06-15", "2025-06-20") // 5
+   * DayjsUtil.remainingDays("2025-06-15", "2025-06-15T01:00:00Z") // 1 (rounds up)
+   */
+  static remainingDays(
+    fromDate: DateInput,
+    toDate: DateInput,
+    timezone?: TimezoneString,
+  ): number {
+    const tz = timezone ?? UTC;
+    const from = dayjs(fromDate).tz(tz);
+    const to = dayjs(toDate).tz(tz);
+    // Use dayjs calendar-day diff (DST-aware, truncates toward zero)
+    const wholeDays = to.diff(from, "day");
+    // Check if there's a partial-day remainder
+    const remainder = to.diff(from.add(wholeDays, "day"), "millisecond");
+    if (remainder > 0) return wholeDays + 1;
+    if (remainder < 0) return wholeDays - 1;
+    return wholeDays;
   }
 }
 
