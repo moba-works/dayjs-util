@@ -586,6 +586,7 @@ EventDateHandler.normalize({
 - **Peer dependency on dayjs** — consumers control the version, no duplication
 - **Dual CJS/ESM** — works in Node.js, browsers, and bundlers
 - **Tree-shakeable** — `sideEffects: false` for optimal bundling; `EventDateHandler` can be imported separately via `/event` entry point
+- **~7.7 kB gzipped** total production cost — dayjs core + 6 plugins + this library, measured with esbuild minify + gzip
 
 ## How DST is Handled
 

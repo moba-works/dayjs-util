@@ -586,6 +586,7 @@ EventDateHandler.normalize({
 - **dayjs peer dependency** — 사용자가 버전 관리, 중복 방지
 - **Dual CJS/ESM** — Node.js, 브라우저, 번들러 모두 지원
 - **트리 셰이킹 지원** — 최적 번들링을 위한 `sideEffects: false`; `EventDateHandler`는 `/event` 엔트리 포인트로 별도 import 가능
+- **gzip 기준 ~7.7 kB** — dayjs 코어 + 플러그인 6개 + 이 라이브러리의 총 프로덕션 번들 크기 (esbuild minify + gzip 측정)
 
 ## DST 처리 방식
 
