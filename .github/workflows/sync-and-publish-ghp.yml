@@ -36,12 +36,21 @@ jobs:
           LOCAL=$(git rev-parse HEAD)
           UPSTREAM=$(git rev-parse upstream/main)
           if [ "$LOCAL" != "$UPSTREAM" ]; then
+            # Save fork's workflow files before merge
+            cp -r .github/workflows /tmp/fork-workflows
+
             git merge upstream/main --no-edit
-            # Remove upstream-only workflow files (GITHUB_TOKEN cannot push workflow changes)
-            if git diff HEAD~1 --name-only | grep -q 'claude'; then
-              git rm -f .github/workflows/claude.yml .github/workflows/claude-code-review.yml 2>/dev/null || true
-              git commit -m "chore: exclude upstream-only Claude workflow files from fork" --allow-empty
+
+            # Restore fork's workflow files (GITHUB_TOKEN cannot push workflow changes)
+            rm -rf .github/workflows
+            cp -r /tmp/fork-workflows .github/workflows
+            git add .github/workflows/
+
+            # Commit the workflow restoration if there are changes
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: preserve fork workflow files after upstream sync"
             fi
+
             git push origin main
             echo "updated=true" >> "$GITHUB_OUTPUT"
           else
@@ -60,7 +69,7 @@ jobs:
         with:
           ref: main
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           version: 10
 
