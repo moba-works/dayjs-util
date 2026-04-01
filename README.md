@@ -47,6 +47,7 @@ npm install @brandonwie/dayjs-util dayjs
   - [toAllDayUTC](#toalldayutcstart-end) | [toTimedUTC](#totimedutcstart-end-timezone) | [normalize](#normalizeparams)
 - [Migration Guide](#migration-guide-new-date--dayjsutil)
 - [Design Decisions](#design-decisions)
+- [How DST is Handled](#how-dst-is-handled)
 - [Breaking Changes in v0.4.0](#breaking-changes-in-v040)
 - [References](#references)
 - [License](#license)
@@ -585,6 +586,60 @@ EventDateHandler.normalize({
 - **Peer dependency on dayjs** — consumers control the version, no duplication
 - **Dual CJS/ESM** — works in Node.js, browsers, and bundlers
 - **Tree-shakeable** — `sideEffects: false` for optimal bundling; `EventDateHandler` can be imported separately via `/event` entry point
+
+## How DST is Handled
+
+This library is DST-safe because every timezone-aware method applies the timezone
+**before** performing operations. The actual DST resolution is delegated down a chain:
+
+```
+DayjsUtil → dayjs timezone plugin → Intl.DateTimeFormat → OS/ICU timezone data
+```
+
+This library has no built-in timezone database. It relies on the JavaScript
+runtime's [`Intl.DateTimeFormat`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat)
+API, which reads DST rules from the operating system's copy of the
+[IANA timezone database](https://www.iana.org/time-zones).
+
+### Why the `timezone` parameter matters for DST
+
+The offset in an ISO 8601 string (e.g., `-05:00`) resolves the input to an exact
+UTC instant. The `timezone` parameter tells arithmetic operations which
+calendar/clock rules to follow. These are different jobs:
+
+```typescript
+// Frontend sends a New York time with offset (EST = -05:00)
+DayjsUtil.add("2025-03-09T01:00:00-05:00", 1, "day", "America/New_York");
+// → March 10, 01:00 AM EDT (-04:00, DST kicked in)
+// → Internally: 2025-03-10T05:00:00Z (23 real hours, not 24)
+
+// Without timezone: raw +24h math
+DayjsUtil.add("2025-03-09T01:00:00-05:00", 1, "day");
+// → March 10, 02:00 AM EDT (wall-clock drifted by 1 hour)
+```
+
+For a calendar showing "daily event at 1:00 AM", that 1-hour drift matters.
+
+### Which methods are DST-aware
+
+| Method                            | Why DST matters                                              |
+| --------------------------------- | ------------------------------------------------------------ |
+| `add` / `subtract`                | Wall-clock time preserved across DST boundaries              |
+| `startOf` / `endOf`               | Midnight depends on the timezone's DST state                 |
+| `isSame` / `isBefore` / `isAfter` | "Same day" boundary shifts with DST                          |
+| `remainingDays`                   | Uses calendar-day diff, not `ms / 86400000`                  |
+| `toTimedUTC` (EventDateHandler)   | `dayjs.tz()` resolves DST when parsing bare datetime strings |
+
+### Edge cases
+
+| Case                                                               | Behavior                                                                     |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| **Ambiguous time** (fall-back overlap, e.g., 1:30 AM occurs twice) | dayjs picks the first occurrence (pre-transition)                            |
+| **Non-existent time** (spring-forward gap, e.g., 2:30 AM skipped)  | dayjs rolls forward to the next valid time                                   |
+| **Stale timezone data**                                            | Requires updating Node.js or OS; this library does not ship its own database |
+
+> **Note:** Timezones that do not observe DST (e.g., `Asia/Seoul`, `UTC`) are
+> unaffected. The `timezone` parameter still works — it just applies a fixed offset.
 
 ## Breaking Changes in v0.4.0
 
