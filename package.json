@@ -1,6 +1,6 @@
 {
   "name": "@brandonwie/dayjs-util",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Timezone-safe date utility wrapper for dayjs — built for calendar applications",
   "type": "module",
   "main": "./dist/index.cjs",
