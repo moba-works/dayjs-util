@@ -93,6 +93,22 @@ jobs:
 
       - run: pnpm build
 
+      - name: Check if version already published
+        id: version-check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          PKG_NAME=$(node -p "require('./package.json').name")
+          if npm view "${PKG_NAME}@${VERSION}" version --registry=https://npm.pkg.github.com 2>/dev/null; then
+            echo "Version ${VERSION} already published, skipping"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version ${VERSION} not found, will publish"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - run: pnpm publish --access restricted --no-git-checks
+        if: steps.version-check.outputs.exists != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
