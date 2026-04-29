@@ -8,3 +8,6 @@ coverage/
 docs
 .claude/
 CLAUDE.md
+.serena/cache/
+graphify-out/
+.code-review-graph/
